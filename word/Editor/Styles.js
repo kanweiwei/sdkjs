@@ -164,7 +164,7 @@ CTableStylePr.prototype =
             || true !== this.TableCellPr.Is_Equal(TableStylePr.TableCellPr))
             return false;
 
-        return false;
+        return true;
     },
 
     Check_PresentationPr : function(Theme)
@@ -5643,6 +5643,7 @@ CStyle.prototype =
             || this.Next !== oStyle.Next
             || this.Type !== oStyle.Type
             || this.Link !== oStyle.Link
+            || true !== IsEqualStyleObjects(this.TableBand1Horz , oStyle.TableBand1Horz )
             || this.qFormat !== oStyle.qFormat
             || this.uiPriority !== oStyle.uiPriority
             || this.hidden !== oStyle.hidden
@@ -5654,7 +5655,7 @@ CStyle.prototype =
                 && (true !== this.TablePr.Is_Equal(oStyle.TablePr)
                     || true !== this.TableRowPr.Is_Equal(oStyle.TableRowPr)
                     || true !== this.TableCellPr.Is_Equal(oStyle.TableCellPr)
-                    || true !== IsEqualStyleObjects(this.TableBand1Horz , oStyle.TableBand1Horz )
+                    
                     || true !== IsEqualStyleObjects(this.TableBand1Vert , oStyle.TableBand1Vert )
                     || true !== IsEqualStyleObjects(this.TableBand2Horz , oStyle.TableBand2Horz )
                     || true !== IsEqualStyleObjects(this.TableBand2Vert , oStyle.TableBand2Vert )
@@ -10566,8 +10567,8 @@ CDocumentBorder.prototype.IsEqual = function(oBorder)
 
 	return (IsEqualStyleObjects(this.Color, oBorder.Color)
 		&& IsEqualStyleObjects(this.Unifill, oBorder.Unifill)
-		&& this.Space !== oBorder.Space
-		&& this.Size !== oBorder.Size);
+		&& this.Space === oBorder.Space
+		&& this.Size === oBorder.Size);
 };
 CDocumentBorder.prototype.WriteToBinary = function(oWriter)
 {

@@ -288,8 +288,9 @@
 			return oSimplePos;
 		
 		return {
-			x: oSimplePos.X,
-			y: oSimplePos.Y
+			x:   private_MM2EMU(oSimplePos.X),
+			y:   private_MM2EMU(oSimplePos.Y),
+			use: oSimplePos.Use
 		}
 	};
 	function SerPosV(oPosV)
@@ -297,9 +298,56 @@
 		if (!oPosV)
 			return oPosV;
 		
+		// anchorV
+		var sVerAnchor = undefined;
+		switch (oPosV.RelativeFrom)
+		{
+			case Asc.c_oAscVAnchor.Margin:
+				sVerAnchor = "margin";
+				break;
+			case Asc.c_oAscVAnchor.Text:
+				sVerAnchor = "text";
+				break;
+			case Asc.c_oAscVAnchor.Page:
+				sVerAnchor = "page";
+				break;
+		}
+
+		// alignV
+		var sVerAlign = undefined;
+		if (oPosV.Align)
+		{
+			switch (oPosV.Value)
+			{
+				case c_oAscYAlign.Bottom:
+					sVerAlign = "bottom";
+					break;
+				case c_oAscYAlign.Center:
+					sVerAlign = "center";
+					break;
+				case c_oAscYAlign.Inline:
+					sVerAlign = "inline";
+					break;
+				case c_oAscYAlign.Inside:
+					sVerAlign = "inside";
+					break;
+				case c_oAscYAlign.Outside:
+					sVerAlign = "outside";
+					break;
+				case c_oAscYAlign.Top:
+					sVerAlign = "top";
+					break;
+			}
+		}
+
+		// offset
+		var posOffset = oPosV.Align ? (oPosV.Percent ? oPosV.Value : private_MM2EMU(oPosV.Value)) : undefined;
+
 		return {
-			align:        oPosV.Align,
-			relativeFrom: oPosV.RelativeFrom
+			align:        sVerAlign,
+			relativeFrom: sVerAnchor,
+			posOffset:    posOffset,
+			percent:      oPosV.Percent
 		}
 	};
 	function SerPosH(oPosH)
@@ -307,9 +355,53 @@
 		if (!oPosH)
 			return oPosH;
 		
+		// anchorH
+		var sHorAnchor = undefined;
+		switch (oPosH.RelativeFrom)
+		{
+			case Asc.c_oAscHAnchor.Margin:
+				sHorAnchor = "margin";
+				break;
+			case Asc.c_oAscHAnchor.Text:
+				sHorAnchor = "text";
+				break;
+			case Asc.c_oAscHAnchor.Page:
+				sHorAnchor = "page";
+				break;
+		}
+
+		// alignH
+		var sHorAlign = undefined;
+		if (oPosH.Align)
+		{
+			switch (oPosH.Value)
+			{
+				case c_oAscXAlign.Center:
+					sHorAlign = "center";
+					break;
+				case c_oAscXAlign.Inside:
+					sHorAlign = "inside";
+					break;
+				case c_oAscXAlign.Left:
+					sHorAlign = "left";
+					break;
+				case c_oAscXAlign.Outside:
+					sHorAlign = "outside";
+					break;
+				case c_oAscXAlign.Right:
+					sHorAlign = "right";
+					break;
+			}
+		}
+
+		// offset
+		var posOffSet =  oPosH.Align ? (oPosH.Percent ? oPosH.Value : private_MM2EMU(oPosH.Value)) : undefined;
+
 		return {
-			align:        oPosH.Align,
-			relativeFrom: oPosH.RelativeFrom
+			align:        sHorAlign,
+			relativeFrom: sHorAnchor,
+			posOffser:    posOffSet,
+			percent:      oPosH.Percent
 		}
 	};
 	function SerExtent(oExtent)
@@ -334,7 +426,7 @@
 			t: oEffExt.T
 		}
 	};
-	function GetWrapType(nType)
+	function GetWrapStrType(nType)
 	{
 		switch (nType)
 		{
@@ -352,6 +444,24 @@
 				return "none";
 		}
 	};
+	function GetWrapNumType(sType)
+	{
+		switch (sType)
+		{
+			case "none":
+				return WRAPPING_TYPE_NONE;
+			case "square":
+				return WRAPPING_TYPE_SQUARE;
+			case "through":
+				return WRAPPING_TYPE_THROUGH;
+			case "tight":
+				return WRAPPING_TYPE_TIGHT;
+			case "top_and_bottom":
+				return WRAPPING_TYPE_TOP_AND_BOTTOM;
+			default:
+				return WRAPPING_TYPE_NONE;
+		}
+	};
 	function SerGrapicObject(oGraphicObj, aComplexFieldsToSave)
 	{
 		if (!oGraphicObj)
@@ -366,19 +476,148 @@
 		
 		return null;
 	};
-	function SerDocPr(oDocPr)
+	function SerCNvPr(oCNvPr)
 	{
-		if (!oDocPr)
+		if (!oCNvPr)
 			return null;
 		
 		return {
-			hlinkClick: SerHlink(oDocPr.hlinkClick),
-			hlinkHover: SerHlink(oDocPr.hlinkHover),
-			descr:      oDocPr.descr,
-			hidden:     oDocPr.isHidden,
-			id:         oDocPr.id,
-			name:       oDocPr.name,
-			title:      oDocPr.title
+			hlinkClick: SerHlink(oCNvPr.hlinkClick),
+			hlinkHover: SerHlink(oCNvPr.hlinkHover),
+			descr:      oCNvPr.descr,
+			hidden:     oCNvPr.isHidden,
+			id:         oCNvPr.id,
+			name:       oCNvPr.name,
+			title:      oCNvPr.title
+		}
+	};
+	function SerNvPr(oNvPr)
+	{
+		if (!oNvPr)
+			return oNvPr;
+
+		return {
+			isPhoto:   oNvPr.isPhoto,
+			ph:        SerPlaceholder(oNvPr.ph),
+			unimedia:  SerUniMedia(oNvPr.unimedia),
+			userDrawn: userDrawn
+		}
+	};
+	function SerPlaceholder(oPh)
+	{
+		if (!oPh)
+			return oPh;
+
+		// orient
+		var sOrient = typeof(oPh.orient) === "number" ? (oPh.orient === 1 ? "vert" : "horz") : null;
+		
+		// size
+		var sPhSz   = null;
+		switch (oPh.sz)
+		{
+			case 0:
+				sPhSz = "full";
+				break;
+			case 1:
+				sPhSz = "half";
+				break;
+			case 2:
+				sPhSz = "quarter";
+				break;
+		}
+
+		return {
+			hasCustomPrompt: hasCustomPrompt.isPhoto,
+			idx:             idx,
+			orient:          sOrient,
+			sz:              sPhSz,
+			type:            GetStrPhType(oPh.type)
+		}
+	};
+	function SerUniMedia(oUniMedia)
+	{
+		if (!oUniMedia)
+			return oUniMedia;
+
+		return {
+			type:  oUniMedia.type,
+			media: oUniMedia.media
+		}
+	};
+	function GetStrPhType(nType)
+	{
+		switch (nType)
+		{
+			case AscFormat.phType_body:
+				return "body";
+			case AscFormat.phType_chart:
+				return "sPhType";
+			case AscFormat.phType_clipArt:
+				return "clipArt";
+			case AscFormat.phType_ctrTitle:
+				return "ctrTitle";
+			case AscFormat.phType_dgm:
+				return "dgm";
+			case AscFormat.phType_dt:
+				return "dt";
+			case AscFormat.phType_ftr:
+				return "ftr";
+			case AscFormat.phType_hdr:
+				return "hdr";
+			case AscFormat.phType_media:
+				return "media";
+			case AscFormat.phType_obj:
+				return "obj";
+			case AscFormat.phType_pic:
+				return "pic";
+			case AscFormat.phType_sldImg:
+				return "sldImg";
+			case AscFormat.phType_sldNum:
+				return "sldNum";
+			case AscFormat.phType_subTitle:
+				return "subTitle";
+			case AscFormat.phType_tbl:
+				return "tbl";
+			case AscFormat.phType_title:
+				return "title";
+		}
+	};
+	function GetNumPhType(sType)
+	{
+		switch (sType)
+		{
+			case "body":
+				return AscFormat.phType_body;
+			case "sPhType":
+				return AscFormat.phType_chart;
+			case "clipArt":
+				return AscFormat.phType_clipArt;
+			case "ctrTitle":
+				return AscFormat.phType_ctrTitle;
+			case "dgm":
+				return AscFormat.phType_dgm;
+			case "dt":
+				return AscFormat.phType_dt;
+			case "ftr":
+				return AscFormat.phType_ftr;
+			case "hdr":
+				return AscFormat.phType_hdr;
+			case "media":
+				return AscFormat.phType_media;
+			case "obj":
+				return AscFormat.phType_obj;
+			case "pic":
+				return AscFormat.phType_pic;
+			case "sldImg":
+				return AscFormat.phType_sldImg;
+			case "sldNum":
+				return AscFormat.phType_sldNum;
+			case "subTitle":
+				return AscFormat.phType_subTitle;
+			case "tbl":
+				return AscFormat.phType_tbl;
+			case "title":
+				return AscFormat.phType_title;
 		}
 	};
 	function SerNumLit(oNumLit)
@@ -1351,11 +1590,11 @@
 		
 		if (oColor.Mods)
 		{
-			for (var nMod = 0; nMod < oColor.Mods.length; nMod++)
+			for (var nMod = 0; nMod < oColor.Mods.Mods.length; nMod++)
 			{
 				arrColorMods.push({
-					name: oColor.Mods[nMod].name,
-					val:  oColor.Mods[nMod].val
+					name: oColor.Mods.Mods[nMod].name,
+					val:  oColor.Mods.Mods[nMod].val
 				});
 			}
 		}
@@ -1479,14 +1718,20 @@
 
 		var oStyleWithFullPr  = oStyle.Copy();
 		oStyleWithFullPr.Link = oStyle.Link;
+		oStyleWithFullPr.Id   = oStyle.Id;
 
 		var oDocument        = private_GetLogicDocument();
 		
 		function GetFullStylePr(styleObj)
 		{
-			var oStyleBasedOn        = oDocument.Styles.Get(styleObj.GetBasedOn()).Copy();
-			var oStyleBasedOnBasedOn = oDocument.Styles.Get(oStyleBasedOn.GetBasedOn());
+			var nBadedOnId           = styleObj.GetBasedOn();
+			var oStyleBasedOn        = nBadedOnId ? oDocument.Styles.Get(nBadedOnId).Copy() : null;
+			var nBasedOnBasedOnId    = oStyleBasedOn ? oStyleBasedOn.GetBasedOn() : null;
+			var oStyleBasedOnBasedOn = nBasedOnBasedOnId ? oDocument.Styles.Get(nBasedOnBasedOnId) : null;
 			
+			if (!oStyleBasedOn)
+				return;
+
 			if (oStyleBasedOnBasedOn)
 				GetFullStylePr(oStyleBasedOn);
 
@@ -1646,6 +1891,7 @@
 		var sJc          = undefined;
 		var sLayoutType  = oPr.TableLayout == undefined ? oPr.TableLayout : (oPr.TableLayout === tbllayout_Fixed ? "fixed" : "autofit");
 		var sOverlapType = oTable ? (oTable.AllowOverlap ? "overlap" : "never") : "never";
+		var isInline     = oTable ? (oTable.Inline ? true : false) : false;
 		switch (oPr.Jc)
 		{
 			case AscCommon.align_Left:
@@ -1693,13 +1939,13 @@
 		{
 			switch (oTable.PositionV.RelativeFrom)
 			{
-				case Asc.c_oAscHAnchor.Margin:
+				case Asc.c_oAscVAnchor.Margin:
 					sVerAnchor = "margin";
 					break;
-				case Asc.c_oAscHAnchor.Text:
+				case Asc.c_oAscVAnchor.Text:
 					sVerAnchor = "text";
 					break;
-				case Asc.c_oAscHAnchor.Page:
+				case Asc.c_oAscVAnchor.Page:
 					sVerAnchor = "page";
 					break;
 			}
@@ -1711,47 +1957,47 @@
 		{
 			switch (oTable.PositionH.Value)
 			{
-				case c_oAscYAlign.Bottom:
-					sHorAlign = "bottom";
-					break;
-				case c_oAscYAlign.Center:
+				case c_oAscXAlign.Center:
 					sHorAlign = "center";
 					break;
-				case c_oAscYAlign.Inline:
-					sHorAlign = "inline";
-					break;
-				case c_oAscYAlign.Inside:
+				case c_oAscXAlign.Inside:
 					sHorAlign = "inside";
 					break;
-				case c_oAscYAlign.Outside:
+				case c_oAscXAlign.Left:
+					sHorAlign = "left";
+					break;
+				case c_oAscXAlign.Outside:
 					sHorAlign = "outside";
 					break;
-				case c_oAscYAlign.Top:
-					sHorAlign = "top";
+				case c_oAscXAlign.Right:
+					sHorAlign = "right";
 					break;
 			}
 		}
-
+		
 		// alignV
 		var sVerAlign = undefined;
 		if (oTable && oTable.PositionV && oTable.PositionV.Align)
 		{
 			switch (oTable.PositionV.Value)
 			{
+				case c_oAscYAlign.Bottom:
+					sVerAlign = "bottom";
+					break;
 				case c_oAscYAlign.Center:
 					sVerAlign = "center";
+					break;
+				case c_oAscYAlign.Inline:
+					sVerAlign = "inline";
 					break;
 				case c_oAscYAlign.Inside:
 					sVerAlign = "inside";
 					break;
-				case c_oAscYAlign.Left:
-					sVerAlign = "left";
-					break;
 				case c_oAscYAlign.Outside:
 					sVerAlign = "outside";
 					break;
-				case c_oAscYAlign.Right:
-					sVerAlign = "right";
+				case c_oAscYAlign.Top:
+					sVerAlign = "top";
 					break;
 			}
 		}
@@ -1806,7 +2052,8 @@
 			tblStyle:            oTableStyle ? SerStyle(oTableStyle) : oTableStyle,
 			tblStyleColBandSize: oPr.TableStyleColBandSize,
 			tblStyleRowBandSize: oPr.TableStyleRowBandSize,
-			tblW:                SerTableMeasurement(oPr.TableW)
+			tblW:                SerTableMeasurement(oPr.TableW),
+			inline:              isInline
 		}
 	};
 	function SerTable(oTable)
@@ -1837,8 +2084,8 @@
 		if (!oPr)
 			return oPr;
 
-		var sHMerge = oPr.HMerge ? (oPr.HMerge === 2 ? "continue" : "restart") : "restart";
-		var sVMerge = oPr.VMerge ? (oPr.VMerge === 2 ? "continue" : "restart") : "restart";
+		var sHMerge = oPr.HMerge ? (oPr.HMerge === 2 ? "continue" : "restart") : oPr.HMerge;
+		var sVMerge = oPr.VMerge ? (oPr.VMerge === 2 ? "continue" : "restart") : oPr.VMerge;
 		var sVAlign = undefined;
 
 		// alignV
@@ -2525,7 +2772,7 @@
 	function SerDrawing(oDrawing, aComplexFieldsToSave)
 	{
 		var oDrawingObject = {
-			docPr:          SerDocPr(oDrawing.docPr),
+			docPr:          SerCNvPr(oDrawing.docPr),
 			effectExtent:   SerEffectExtent(oDrawing.EffectExtent),
 			extent:         SerExtent(oDrawing.Extent),
 			graphic:        SerGrapicObject(oDrawing.GraphicObj, aComplexFieldsToSave),
@@ -2542,7 +2789,7 @@
 			layoutInCell:   oDrawing.LayoutInCell,
 			locked:         oDrawing.Locked,
 			relativeHeight: oDrawing.RelativeHeight,
-			wrapType:       GetWrapType(oDrawing.wrappingType),
+			wrapType:       GetWrapStrType(oDrawing.wrappingType),
 			type:           "drawing"
 		};
 
@@ -3502,18 +3749,9 @@
 			return oUniNvPr;
 
 		return {
-			cNvPr: oUniNvPr.cNvPr ? {
-				hlinkClick: SerHlink(oUniNvPr.cNvPr.hlinkClick),
-				hlinkHover: SerHlink(oUniNvPr.cNvPr.hlinkHover),
-				descr:      oUniNvPr.cNvPr.descr,
-				hidden:     oUniNvPr.cNvPr.isHidden,
-				id:         oUniNvPr.cNvPr.id,
-				name:       oUniNvPr.cNvPr.name,
-				title:      oUniNvPr.cNvPr.title
-			} : oUniNvPr.cNvPr,
-			nvPr: oUniNvPr.nvPr ? {
-				
-			} : oUniNvPr.nvPr 
+			cNvPr:     SerCNvPr(oUniNvPr.cNvPr),
+			nvPr:      SerNvPr(oUniNvPr.nvPr),
+			nvUniSpPr: SerNvUniSpPr(oUniNvPr.nvUniSpPr)
 		};
 	};
 	function SerBullet(oBullet)
@@ -3699,6 +3937,9 @@
 			return oImgObject;
 		
 		return {
+			base64:   oImgObject.getBase64Img(),
+			extX:     private_MM2EMU(oImgObject.extX),
+			extY:     private_MM2EMU(oImgObject.extY),
 			blipFill: SerBlipFill(oImgObject.blipFill),
 			nvPicPr:  SerUniNvPr(oImgObject.nvPicPr),
 			spPr:     SerSpPr(oImgObject.spPr),
@@ -3799,7 +4040,7 @@
 			vanish:    oTextPr.Vanish,
 			vertAlign: sVAlign,
 			FontRef:   null, /// FontRef, ///???,
-			Unifill:   null ///Unifill /// ???
+			uniFill:   SerFill(oTextPr.Unifill)
 		}
 	};
 	function SerSdtPr(oSdtPr)
@@ -4526,6 +4767,8 @@
 				}
 		}
 		
+		oRun.Internal_Compile_Pr();
+
 		return oRun;
 	};
 	function TextPrFromJSON(oPr)
@@ -4547,6 +4790,26 @@
 				case "subscript":
 					nVAlign = 2;
 					break;
+			}
+		}
+
+		// style 
+		var oStyle    = oPr.rStyle ? StyleFromJSON(oPr.rStyle) : oPr.rStyle;
+		var oDocument = private_GetLogicDocument();
+		if (oStyle)
+		{
+			var nExistingStyle = oDocument.Styles.GetStyleIdByName(oStyle.Name);
+			// если такого стиля нет - добавляем новый
+			if (nExistingStyle === null)
+				oDocument.Styles.Add(oStyle);
+			else
+			{
+				// если стили идентичны, стиль не добавляем
+				if (!oStyle.IsEqual(oDocument.Styles.Get(nExistingStyle)))
+				{
+					oStyle.Set_Name("Custom_Style " + AscCommon.g_oIdCounter.Get_NewId());
+					oDocument.Styles.Add(oStyle);
+				}
 			}
 		}
 
@@ -4574,7 +4837,7 @@
 		oTextPr.RFonts.HAnsiTheme     = oPr["rFonts"].hAnsiTheme;
 		oTextPr.RFonts.Hint           = oPr["rFonts"].hint;
 		oTextPr.PrChange              = oPr["rPrChange"] ? TextPrFromJSON(oPr["rPrChange"]) : oPr["rPrChange"];
-		oTextPr.RStyle                = oPr["rStyle"] ? StyleFromJSON(oPr["rStyle"]) : oPr["rStyle"];
+		oTextPr.RStyle                = oStyle ? oDocument.Styles.GetStyleIdByName(oStyle.Name) : oStyle
 		oTextPr.RTL                   = oPr["rtl"];
 		oTextPr.Shd                   = oPr["shd"] ? ShadeFromJSON(oPr["shd"]) : oPr["shd"]; /// ???
 		oTextPr.SmallCaps             = oPr["smallCaps"];
@@ -4585,7 +4848,7 @@
 		oTextPr.Underline             = oPr["u"];
 		oTextPr.Vanish                = oPr["vanish"];
 		oTextPr.VertAlign             = nVAlign;
-
+		oTextPr.Unifill               = oPr.uniFill ? FillFromJSON(oPr.uniFill) : oPr.uniFill;
 		return oTextPr;
 	};
 	function ShadeFromJSON(oShd) /// To do
@@ -4609,7 +4872,7 @@
 		}
 
 		oShade.FillRef   = oShd.fillRef    ? StyleRefFromJSON(oShd.fillRef) : oShd.fillRef;
-		oShade.UniFill   = oShd.themeColor ? FillFromJSON(oShd.themeColor)  : oShd.themeColor;
+		oShade.Unifill   = oShd.themeColor ? FillFromJSON(oShd.themeColor)  : oShd.themeColor;
 		oShade.themeFill = oShd.themeFill  ? FillFromJSON(oShd.themeFill)   : oShd.themeFill;
 
 		return oShade;
@@ -4629,6 +4892,8 @@
 		var oParaPr   = ParaPrFromJSON(oPr);
 		var oPara     = new AscCommonWord.Paragraph(private_GetDrawingDocument(), null);
 		oPara.Pr      = oParaPr;
+
+		oPara.Parent = private_GetLogicDocument();
 
 		for (var nElm = 0; nElm < aContent.length; nElm++)
 		{
@@ -4684,20 +4949,20 @@
 		switch (oPr.spacing.lineRule)
 		{
 			case "atLeast":
-				oParaPr.Spacing["lineRule"] = linerule_AtLeast;
-				oParaPr.Spacing["line"]     = oPr.spacing.Line ? private_Twips2MM(oPr.spacing.Line) : oPr.spacing.Line;
+				oParaPr.Spacing["LineRule"] = linerule_AtLeast;
+				oParaPr.Spacing["Line"]     = oPr.spacing.line ? private_Twips2MM(oPr.spacing.line) : oPr.spacing.line;
 				break;
 			case "auto":
-				oParaPr.Spacing["lineRule"] = linerule_Auto;
-				oParaPr.Spacing["line"]     = oPr.spacing.Line ? private_Twips2MM(oPr.spacing.Line) : oPr.spacing.Line;
+				oParaPr.Spacing["LineRule"] = linerule_Auto;
+				oParaPr.Spacing["Line"]     = oPr.spacing.line ? private_Twips2MM(oPr.spacing.line) : oPr.spacing.line;
 				break;
 			case "exact":
-				oParaPr.Spacing["lineRule"] = linerule_Exact;
-				oParaPr.Spacing["line"]     = oPr.spacing.Line ? private_Twips2MM(oPr.spacing.Line) : oPr.spacing.Line;
+				oParaPr.Spacing["LineRule"] = linerule_Exact;
+				oParaPr.Spacing["Line"]     = oPr.spacing.line ? private_Twips2MM(oPr.spacing.line) : oPr.spacing.line;
 				break;
 			default:
-				oParaPr.Spacing["lineRule"] = undefined;
-				oParaPr.Spacing["line"]     = undefined;
+				oParaPr.Spacing["LineRule"] = undefined;
+				oParaPr.Spacing["Line"]     = undefined;
 				break;
 		}
 		
@@ -4945,10 +5210,13 @@
 
 		return new CTableMeasurement(nType, nW);
 	};
-	function TableRowFromJSON(oParsedRow, oParentTable)
+	function TableRowFromJSON(oParsedRow, oParentTable, nIndex)
 	{
 		var oRow     = new CTableRow(oParentTable);
 		var aContent = oParsedRow.content;
+
+		if (nIndex >= 0)
+			oRow.Index = nIndex;
 
 		oRow.Pr = TableRowPrFromJSON(oParsedRow.trPr);
 
@@ -4965,6 +5233,9 @@
 		oRowPr.GridAfter  = oParsedPr.gridAfter;
 		oRowPr.GridBefore = oParsedPr.gridBefore;
 
+		// spacing
+		oRowPr.TableCellSpacing = typeof(oParsedPr.tblCellSpacing) === "number" ? private_Twips2MM(oParsedPr.tblCellSpacing) : oParsedPr.tblCellSpacing;
+		
 		// rowJc
 		var nRowJc = undefined;
 		switch (oParsedPr.jc)
@@ -4999,11 +5270,12 @@
 			}
 		}
 
-		oRowPr.Height   = oRowHeight;
-		oRowPr.PrChange = oParsedPr.trPrChange ? TableRowPrFromJSON(oParsedPr.trPrChange) : oParsedPr.trPrChange;
-		oRowPr.WAfter   = oParsedPr.wAfter     ? TableMeasurementFromJSON(oParsedPr.wAfter)  : oParsedPr.wAfter;
-		oRowPr.WBefore  = oParsedPr.wBefore    ? TableMeasurementFromJSON(oParsedPr.wBefore) : oParsedPr.wBefore;
-
+		oRowPr.Height      = oRowHeight;
+		oRowPr.PrChange    = oParsedPr.trPrChange ? TableRowPrFromJSON(oParsedPr.trPrChange) : oParsedPr.trPrChange;
+		oRowPr.WAfter      = oParsedPr.wAfter     ? TableMeasurementFromJSON(oParsedPr.wAfter)  : oParsedPr.wAfter;
+		oRowPr.WBefore     = oParsedPr.wBefore    ? TableMeasurementFromJSON(oParsedPr.wBefore) : oParsedPr.wBefore;
+		oRowPr.TableHeader = oParsedPr.tblHeader;
+		
 		return oRowPr;
 	};
 	function TableFromJSON(oParsedTable)
@@ -5015,10 +5287,12 @@
 		var oTable     = new CTable(private_GetDrawingDocument(), private_GetLogicDocument(), true, 0, 0, aTableGrid, false);
 		var aContent   = oParsedTable.content; 
 	
+		// table prop.
 		oTable.Pr = TablePrFromJSON(oTable, oParsedTable.tblPr);
 
+		// fill table content
 		for (var nRow = 0; nRow < aContent.length; nRow++)
-			oTable.Content[nRow] = TableRowFromJSON(aContent[nRow], oTable);
+			oTable.Content[nRow] = TableRowFromJSON(aContent[nRow], oTable, nRow);
 
 		// выставляем текущую ячейку
 		oTable.CurCell = oTable.Content[0].Get_Cell(0);
@@ -5080,14 +5354,16 @@
 		if (oParentTable)
 		{
 			oParentTable.AllowOverlap = oParsedPr.tblOverlap === "overlap" ? true : false;
-
+			oParentTable.Inline       = oParsedPr.inline;
+			
 			oParentTable.TableLook.m_bFirst_Col = oParsedPr.tblLook ? oParsedPr.tblLook.firstColumn : oParentTable.TableLook.m_bFirst_Col;
 			oParentTable.TableLook.m_bFirst_Row = oParsedPr.tblLook ? oParsedPr.tblLook.firstRow    : oParentTable.TableLook.m_bFirst_Row;
 			oParentTable.TableLook.m_bLast_Col  = oParsedPr.tblLook ? oParsedPr.tblLook.lastColumn  : oParentTable.TableLook.m_bLast_Col;
 			oParentTable.TableLook.m_bLast_Row  = oParsedPr.tblLook ? oParsedPr.tblLook.lastRow     : oParentTable.TableLook.m_bLast_Row;
-			oParentTable.TableLook.m_bBand_Hor  = oParsedPr.tblLook ? oParsedPr.tblLook.noHBand     : oParentTable.TableLook.m_bBand_Hor;
-			oParentTable.TableLook.m_bBand_Ver  = oParsedPr.tblLook ? oParsedPr.tblLook.noVBand     : oParentTable.TableLook.m_bBand_Ver;
+			oParentTable.TableLook.m_bBand_Hor  = oParsedPr.tblLook ? !oParsedPr.tblLook.noHBand     : oParentTable.TableLook.m_bBand_Hor;
+			oParentTable.TableLook.m_bBand_Ver  = oParsedPr.tblLook ? !oParsedPr.tblLook.noVBand     : oParentTable.TableLook.m_bBand_Ver;
 
+			// position prop
 			if (oParsedPr.tblpPr)
 			{
 				// hAnchor
@@ -5177,6 +5453,32 @@
 				oParentTable.Distance.L = private_Twips2MM(oParsedPr.tblpPr.leftFromText);
 				oParentTable.Distance.R = private_Twips2MM(oParsedPr.tblpPr.rightFromText);	
 				oParentTable.Distance.T = private_Twips2MM(oParsedPr.tblpPr.topFromText);
+			}
+
+			// style
+			if (oParsedPr.tblStyle)
+			{
+				// style 
+				var oStyle    = StyleFromJSON(oParsedPr.tblStyle);
+				var oDocument = private_GetLogicDocument();
+				if (oStyle)
+				{
+					var nExistingStyle = oDocument.Styles.GetStyleIdByName(oStyle.Name);
+					// если такого стиля нет - добавляем новый
+					if (nExistingStyle === null)
+						oDocument.Styles.Add(oStyle);
+					else
+					{
+						// если стили идентичны, стиль не добавляем
+						if (!oStyle.IsEqual(oDocument.Styles.Get(nExistingStyle)))
+						{
+							oStyle.Set_Name("Custom_Style " + AscCommon.g_oIdCounter.Get_NewId());
+							oDocument.Styles.Add(oStyle);
+						}
+					}
+				}
+
+				oParentTable.TableStyle = oDocument.Styles.GetStyleIdByName(oStyle.Name);
 			}
 		}
 	
@@ -5450,15 +5752,15 @@
 
 		if (oColor.mods.length !== 0)
 		{
-			oColor.Color.Mods = new AscFormat.CColorModifiers();
+			oColorObj.Mods = new AscFormat.CColorModifiers();
 
-			for (var nMod = 0; nMod < oStyleRef.mods.length; nMod++)
+			for (var nMod = 0; nMod < oColor.mods.length; nMod++)
 			{
 				var oMod  = new AscFormat.CColorMod();
-				oMod.name = oStyleRef.mods[nMod].name;
-				oMod.val  = oStyleRef.mods[nMod].val;
+				oMod.name = oColor.mods[nMod].name;
+				oMod.val  = oColor.mods[nMod].val;
 
-				oColorObj.Color.Mods.push(oMod);
+				oColorObj.Mods.Mods.push(oMod);
 			}
 		}
 
@@ -5728,7 +6030,7 @@
 		oStyle.TableRowPr     = TableRowPrFromJSON(oParsedStyle.trPr);
 		oStyle.TableCellPr    = TableCellPrFromJSON(oParsedStyle.tcPr);
 
-		if (bNoCreateTablePr)
+		if (!bNoCreateTablePr)
 		{
 			oStyle.TableBand1Horz  = TableStylePrFromJSON(oParsedStyle.tblStylePr.band1Horz);
 			oStyle.TableBand1Vert  = TableStylePrFromJSON(oParsedStyle.tblStylePr.band1Vert);
@@ -5758,6 +6060,201 @@
 		oTableStylePr.TableCellPr = oParsedPr.tcPr  ? TableCellPrFromJSON(oParsedPr.tcPr)    : oParsedPr.tcPr;
 
 		return oTableStylePr;
+	};
+	function DrawingFromJSON(oParsedDrawing)
+	{
+		var oDrawing = new ParaDrawing(nW, nH, null, private_GetDrawingDocument(), private_GetLogicDocument(), null);
+		
+		// doc prop
+		oDrawing.docPr = CNvPrFromJSON(oParsedDrawing.docPr);
+
+		// effect extent
+		oDrawing.EffectExtent.B = oParsedDrawing.effectExtent.b;
+		oDrawing.EffectExtent.L = oParsedDrawing.effectExtent.l;
+		oDrawing.EffectExtent.R = oParsedDrawing.effectExtent.r;
+		oDrawing.EffectExtent.T = oParsedDrawing.effectExtent.t;
+
+		// extent
+		oDrawing.Extent.H = oParsedDrawing.extent.cy;
+		oDrawing.Extent.W = oParsedDrawing.extent.cx;
+
+		// posH posY
+		oDrawing.PositionH = PositionHFromJSON(oParsedDrawing.positionH);
+		oDrawing.PositionV = PositionVFromJSON(oParsedDrawing.positionV);
+
+		// simple pos
+		oDrawing.SimplePos.X   = private_EMU2MM(oParsedDrawing.simplePos.x);
+		oDrawing.SimplePos.Y   = private_EMU2MM(oParsedDrawing.simplePos.x);
+		oDrawing.SimplePos.Use = oParsedDrawing.simplePos.use;
+
+		// distance
+		oDrawing.Distance.B = oParsedDrawing.distB;
+		oDrawing.Distance.L = oParsedDrawing.distL;
+		oDrawing.Distance.R = oParsedDrawing.distR;
+		oDrawing.Distance.T = oParsedDrawing.distT;
+
+		// overlap
+		oDrawing.AllowOverlap = oParsedDrawing.allowOverlap;
+
+		// behind doc
+		oDrawing.behindDoc = oParsedDrawing.behindDoc;
+
+		oDrawing.Hidden         = oParsedDrawing.hidden;
+		oDrawing.LayoutInCell   = oParsedDrawing.layoutInCell;
+		oDrawing.Locked         = oParsedDrawing.locked;
+		oDrawing.RelativeHeight = oParsedDrawing.relativeHeight;
+		oDrawing.wrappingType   = GetWrapNumType(oParsedDrawing.wrapType);
+
+		switch (oParsedDrawing.graphic.type)
+		{
+			case "image":
+				return new ApiImage(ImageFromJSON(oParsedDrawing.graphic, oDrawing));
+		}
+	};
+	
+	function ImageFromJSON(oParsedImage, oParentDrawing)
+	{
+		var nW     = private_EMU2MM(oParsedImage.extX);
+		var nH     = private_EMU2MM(oParsedImage.extY);
+		var oImage = private_GetLogicDocument().DrawingObjects.createImage(oParsedImage.base64, 0, 0, nW, nH);
+		
+		oImage.setParent(oParentDrawing);
+		oParentDrawing.Set_GraphicObject(oImage);
+
+		oImage.blipFill    = BlipFillFromJSON(oParsedImage.blipFill);
+		oImgObject.nvPicPr = UniNvPrFromJSON(oParsedImage.nvPicPr);
+	};
+	function CNvPrFromJSON(oParsedPr)
+	{
+		var oDocPr = new AscFormat.CNvPr();
+
+		oDocPr.name       = oParsedPr.name;
+		oDocPr.isHidden   = oParsedPr.hidden;
+		oDocPr.descr      = oParsedPr.descr;
+		oDocPr.title      = oParsedPr.title;
+		oDocPr.hlinkClick = oParsedPr.hlinkClick ? HLinkgFromJSON(oParsedPr.hlinkClick) : oParsedPr.hlinkClick;
+		oDocPr.hlinkHover = oParsedPr.hlinkHover ? HLinkgFromJSON(oParsedPr.hlinkHover) : oParsedPr.hlinkHover;
+		oDocPr.id         = oParsedPr.id;
+
+		return oDocPr;
+	};
+	function HLinkgFromJSON(oParsedHLink)
+	{
+		var oHLink = new AscFormat.CT_Hyperlink();
+
+		oHLink.id             = oParsedHLink.id;
+		oHLink.invalidUrl     = oParsedHLink.invalidUrl;
+		oHLink.action         = oParsedHLink.action;
+		oHLink.tgtFrame       = oParsedHLink.tgtFrame;
+		oHLink.tooltip        = oParsedHLink.tooltip;
+		oHLink.history        = oParsedHLink.history;
+		oHLink.highlightClick = oParsedHLink.highlightClick;
+		oHLink.endSnd         = oParsedHLink.endSnd;
+
+		return oHLink;
+	};
+	function PositionHFromJSON(oParsedPos)
+	{
+		// anchorH
+		var nHorAnchor = undefined;
+		switch (oParsedPos.relativeFrom)
+		{
+			case "margin":
+				nHorAnchor = Asc.c_oAscHAnchor.Margin;
+				break;
+			case "text":
+				nHorAnchor = Asc.c_oAscHAnchor.Text;
+				break;
+			case "page":
+				nHorAnchor = Asc.c_oAscHAnchor.Page;
+				break;
+		}
+
+		// alignH
+		var nHorAlign = undefined;
+		if (oParsedPos.align)
+		{
+			switch (oPosH.align)
+			{
+				case "center":
+					nHorAlign = Asc.c_oAscXAlign.Center;
+					break;
+				case "inside":
+					nHorAlign = Asc.c_oAscXAlign.Inside;
+					break;
+				case "left":
+					nHorAlign = Asc.c_oAscXAlign.Left;
+					break;
+				case "outside":
+					nHorAlign = Asc.c_oAscXAlign.Outside;
+					break;
+				case "right":
+					nHorAlign = Asc.c_oAscXAlign.Right;
+					break;
+			}
+		}
+
+		var nValue = oParsedPos.align ? nHorAlign : (oParsedPos.percent ? oParsedPos.posOffset : private_EMU2MM(oParsedPos.posOffset));
+
+		return {
+			Align:        oParsedPos.align ? true : false,
+			Percent:      oParsedPos.percent ? true : false,
+			RelativeFrom: nHorAnchor,
+			Value:        nValue
+		}
+	};
+	function PositionVFromJSON(oParsedPos)
+	{
+		// anchorV
+		var nVerAnchor = undefined;
+		switch (oPosV.RelativeFrom)
+		{
+			case "margin":
+				nVerAnchor = Asc.c_oAscVAnchor.Margin;
+				break;
+			case "text":
+				nVerAnchor = Asc.c_oAscVAnchor.Text;
+				break;
+			case "page":
+				nVerAnchor = Asc.c_oAscVAnchor.Page;
+				break;
+		}
+
+		// alignV
+		var nVerAlign = undefined;
+		if (oPosV.Align)
+		{
+			switch (oPosV.Value)
+			{
+				case "bottom":
+					nVerAlign = Asc.c_oAscYAlign.Bottom;
+					break;
+				case "center":
+					nVerAlign = Asc.c_oAscYAlign.Center;
+					break;
+				case "inline":
+					nVerAlign = Asc.c_oAscYAlign.Inline;
+					break;
+				case "inside":
+					nVerAlign = Asc.c_oAscYAlign.Inside;
+					break;
+				case "outside":
+					nVerAlign = Asc.c_oAscYAlign.Outside;
+					break;
+				case "top":
+					nVerAlign = Asc.c_oAscYAlign.Top;
+					break;
+			}
+		}
+
+		var nValue = oParsedPos.align ? nVerAlign : (oParsedPos.percent ? oParsedPos.posOffset : private_EMU2MM(oParsedPos.posOffset));
+
+		return {
+			Align:        oParsedPos.align ? true : false,
+			Percent:      oParsedPos.percent ? true : false,
+			RelativeFrom: nVerAnchor,
+			Value:        nValue
+		}
 	};
 	/**
 	 * Class representing a container for paragraphs and tables.
@@ -17847,6 +18344,8 @@
 				return new ApiTableRow(TableRowFromJSON(oParsedObj));
 			case "table":
 				return new ApiTable(TableFromJSON(oParsedObj));
+			case "drawing":
+				return new ApiDrawing(DrawingFromJSON(oParsedObj));
 			
 		}
 	};
@@ -18462,7 +18961,10 @@
 	{
 		return EMU / 36000.0;
 	}
-
+	function private_MM2EMU(MM)
+	{
+		return MM * 36000.0;
+	}
 	function private_GetHps(hps)
 	{
 		return Math.ceil(hps) / 2.0;
