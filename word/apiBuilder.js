@@ -862,34 +862,34 @@
 		var arrCxnResult     = [];
 		var arrGdResult      = [];
 		var arrPathResult    = [];
-		for (var nItem = 0; nItem < oGeometry.ahPolarLst.length; nItem++)
+		for (var nItem = 0; nItem < oGeometry.ahPolarLstInfo.length; nItem++)
 		{
 			arrAhPolarResult.push({
 				pos: {
-					x: oGeometry.ahPolarLst[nItem].posX,
-					y: oGeometry.ahPolarLst[nItem].posY
+					x: oGeometry.ahPolarLstInfo[nItem].posX,
+					y: oGeometry.ahPolarLstInfo[nItem].posY
 				},
-				gdRefAng: oGeometry.ahPolarLst[nItem].gdRefAng,
-				gdRefR: oGeometry.ahPolarLst[nItem].gdRefR,
-				maxAng: oGeometry.ahPolarLst[nItem].maxAng,
-				maxR: oGeometry.ahPolarLst[nItem].maxR,
-				minAng: oGeometry.ahPolarLst[nItem].minAng,
-				minR: oGeometry.ahPolarLst[nItem].minR
+				gdRefAng: oGeometry.ahPolarLstInfo[nItem].gdRefAng,
+				gdRefR: oGeometry.ahPolarLstInfo[nItem].gdRefR,
+				maxAng: oGeometry.ahPolarLstInfo[nItem].maxAng,
+				maxR: oGeometry.ahPolarLstInfo[nItem].maxR,
+				minAng: oGeometry.ahPolarLstInfo[nItem].minAng,
+				minR: oGeometry.ahPolarLstInfo[nItem].minR
 			});
 		}
-		for (var nItem = 0; nItem < oGeometry.ahXYLst.length; nItem++)
+		for (var nItem = 0; nItem < oGeometry.ahXYLstInfo.length; nItem++)
 		{
 			arrAhXYResult.push({
 				pos: {
-					x: oGeometry.ahXYLst[nItem].posX,
-					y: oGeometry.ahXYLst[nItem].posY
+					x: oGeometry.ahXYLstInfo[nItem].posX,
+					y: oGeometry.ahXYLstInfo[nItem].posY
 				},
-				gdRefX: oGeometry.ahXYLst[nItem].gdRefX,
-				gdRefY: oGeometry.ahXYLst[nItem].gdRefY,
-				maxX: oGeometry.ahXYLst[nItem].maxX,
-				maxY: oGeometry.ahXYLst[nItem].maxY,
-				minX: oGeometry.ahXYLst[nItem].minX,
-				minY: oGeometry.ahXYLst[nItem].minY
+				gdRefX: oGeometry.ahXYLstInfo[nItem].gdRefX,
+				gdRefY: oGeometry.ahXYLstInfo[nItem].gdRefY,
+				maxX: oGeometry.ahXYLstInfo[nItem].maxX,
+				maxY: oGeometry.ahXYLstInfo[nItem].maxY,
+				minX: oGeometry.ahXYLstInfo[nItem].minX,
+				minY: oGeometry.ahXYLstInfo[nItem].minY
 			});
 		}
 		for (var nItem = 0; nItem < oGeometry.avLst.length; nItem++)
@@ -899,14 +899,14 @@
 				name: oGeometry.avLst[nItem].Name
 			});
 		}
-		for (var nItem = 0; nItem < oGeometry.cnxLst.length; nItem++)
+		for (var nItem = 0; nItem < oGeometry.cnxLstInfo.length; nItem++)
 		{
 			arrCxnResult.push({
 				pos: {
-					x: oGeometry.cnxLst[nItem].x,
-					y: oGeometry.cnxLst[nItem].y
+					x: oGeometry.cnxLstInfo[nItem].x,
+					y: oGeometry.cnxLstInfo[nItem].y
 				},
-				ang: oGeometry.cnxLst[nItem].ang
+				ang: oGeometry.cnxLstInfo[nItem].ang
 			});
 		}
 		for (var nItem = 0; nItem < oGeometry.gdLst.length; nItem++)
@@ -984,41 +984,8 @@
 		if (!oSpPr)
 			return oSpPr;
 
-		var oXfrm = oSpPr.xfrm ? {
-			ext: {
-				cx: oSpPr.xfrm.extX,
-				cy: oSpPr.xfrm.extY
-			},
-			off: {
-				x: oSpPr.xfrm.offX,
-				y: oSpPr.xfrm.offY
-			},
-			flipH: oSpPr.xfrm.flipH,
-			flipV: oSpPr.xfrm.flipV,
-			rot: oSpPr.xfrm.rot
-		} : oSpPr.xfrm;
-
 		var oEffectLst = oSpPr.effectProps ? SerEffectLst(oSpPr.effectProps.EffectLst) : oSpPr.effectProps;
 		var oEffectDag = oSpPr.effectProps ? SerEffectDag(oSpPr.effectProps.EffectDag) : oSpPr.effectProps;
-		var oLineJoin  = oSpPr.ln ? (oSpPr.ln.Join ? {lim : oSpPr.ln.Join.limit} : oSpPr.ln.Join) : oSpPr.ln;
-		if (oLineJoin)
-		{
-			switch (oSpPr.ln.Join.type)
-			{
-				case 0:
-					oLineJoin["type"] = "empty";
-					break;
-				case 1:
-					oLineJoin["type"] = "round";
-					break;
-				case 2:
-					oLineJoin["type"] = "bevel";
-					break;
-				case 3:
-					oLineJoin["type"] = "miter";
-					break;
-			}
-		}
 		
 		return {
 			custGeom:  SerGeometry(oSpPr.geometry),
@@ -1027,8 +994,27 @@
 			ln: SerLn(oSpPr.ln),
 
 			fill:   SerFill(oSpPr.Fill),
-			xfrm:   oXfrm,
+			xfrm:   SerXfrm(oSpPr.xfrm),
 			bwMode: oSpPr.bwMode
+		}
+	};
+	function SerXfrm(oXfrm)
+	{
+		if (!oXfrm)
+			return oXfrm;
+
+		return {
+			ext: {
+				cx: oXfrm.extX ? private_MM2EMU(oXfrm.extX) : oXfrm.extX,
+				cy: oXfrm.extY ? private_MM2EMU(oXfrm.extY) : oXfrm.extY
+			},
+			off: {
+				x: oXfrm.offX ? private_MM2EMU(oXfrm.offX) : oXfrm.offX,
+				y: oXfrm.offY ? private_MM2EMU(oXfrm.offY) : oXfrm.offY
+			},
+			flipH: oXfrm.flipH,
+			flipV: oXfrm.flipV,
+			rot: oXfrm.rot
 		}
 	};
 	function SerLn(oLn)
@@ -1036,31 +1022,109 @@
 		if (!oLn)
 			return oLn;
 		
-		var oLineJoin  = oLn.Join ? {lim : oLn.Join.limit} : oLn.Join;
 		return {
 			fill:     SerFill(oLn.Fill),
-				lineJoin: oLineJoin,
-				
-				algn:     oLn.algn,
-				cap:      oLn.cap,
-				cmpd:     oLn.cmpd,
-				w:        oLn.w,
+			lineJoin: SerLineJoin(oLn.Join),
+			
+			algn:     oLn.algn,
+			cap:      oLn.cap,
+			cmpd:     oLn.cmpd,
+			w:        private_Pt2EMU(oLn.w),
 
-				headEnd:  oLn.headEnd ? 
-				{
-					len:  oLn.headEnd.len,
-					type: oLn.headEnd.type,
-					w:    oLn.headEnd.w
-				} : oLn.headEnd,
+			headEnd:  SerEndArrow(oLn.headEnd),
 
-				prstDash: oLn.prstDash,
+			prstDash: oLn.prstDash,
 
-				tailEnd:  oLn.tailEnd ? 
-				{
-					len:  oLn.tailEnd.len,
-					type: oLn.tailEnd.type,
-					w:    oLn.tailEnd.w
-				} : oLn.prstDash,
+			tailEnd: SerEndArrow(oLn.tailEnd)
+		}
+	};
+	function SerLineJoin(oLine)
+	{
+		if (!oLine)
+			return oLine;
+
+		var sType = undefined;
+		switch (oLine.type)
+		{
+			case AscFormat.LineJoinType.Round:
+				sType = "round";
+				break;
+			case  AscFormat.LineJoinType.Bevel:
+				sType = "bevel";
+				break;
+			case  AscFormat.LineJoinType.Miter:
+				sType = "miter";
+				break;
+			case  AscFormat.LineJoinType.Empty:
+				sType = "empty";
+				break;
+		}
+
+		return {
+			type: sType,
+			lim:  oLine.limit
+		}
+	};
+	function SerEndArrow(oArrow)
+	{
+		if (!oArrow)
+			return oArrow;
+		
+		var sType = null;
+		switch(oArrow.type)
+		{
+			case AscFormat.LineEndType.None:
+				sType = "none";
+				break;
+			case AscFormat.LineEndType.Arrow:
+				sType = "arrow";
+				break;
+			case AscFormat.LineEndType.Diamond:
+				sType = "diamond";
+				break;
+			case AscFormat.LineEndType.Oval:
+				sType = "oval";
+				break;
+			case AscFormat.LineEndType.Stealth:
+				sType = "stealth";
+				break;
+			case AscFormat.LineEndType.Triangle:
+				sType = "triangle";
+				break;
+		}
+
+		var sLineEndSize = null;
+		switch(oArrow.len)
+		{
+			case AscFormat.LineEndSize.Large:
+				sLineEndSize = "lg";
+				break;
+			case AscFormat.LineEndSize.Mid:
+				sLineEndSize = "med";
+				break;
+			case AscFormat.LineEndSize.Small:
+				sLineEndSize = "sm";
+				break;
+		}
+
+		var sLineEndWidth = null;
+		switch(oArrow.len)
+		{
+			case AscFormat.LineEndSize.Large:
+				sLineEndWidth = "lg";
+				break;
+			case AscFormat.LineEndSize.Mid:
+				sLineEndWidth = "med";
+				break;
+			case AscFormat.LineEndSize.Small:
+				sLineEndWidth = "sm";
+				break;
+		}
+		
+		return {
+			len:  sLineEndSize,
+			type: sType,
+			w:    sLineEndWidth
 		}
 	};
 	function SerEffectLst(oEffectLst)
@@ -1146,275 +1210,281 @@
 		if (!oEffectDag)
 			return oEffectDag;
 			
+		var arrEffectLst = SerEffects(oEffectDag.effectList);
+		
+		return {
+			effectList: arrEffectLst,
+			name:       oEffectDag.name,
+			type:       oEffectDag.type
+		}
+	};
+	function SerEffects(arrEffects)
+	{
 		var arrEffectLst = [];
-		var baseArrEffectLst = Array.isArray(oEffectDag) ? oEffectDag : oEffectDag.effectList;
-		for (var nEffect = 0; nEffect < baseArrEffectLst.length; nEffect++)
+		for (var nEffect = 0; nEffect < arrEffects.length; nEffect++)
 		{
 			var oElm = null;
-			if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaBiLevel)
+			if (arrEffects[nEffect] instanceof AscFormat.CAlphaBiLevel)
 			{
 				oElm = {
-					thresh: baseArrEffectLst[nEffect].tresh,
+					thresh: arrEffects[nEffect].tresh,
 					type:   "alphaBiLvl"
 				}
 									
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaCeiling)
+			else if (arrEffects[nEffect] instanceof AscFormat.CAlphaCeiling)
 			{
 				oElm = {
 					type: "alphaCeiling"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaFloor)
+			else if (arrEffects[nEffect] instanceof AscFormat.CAlphaFloor)
 			{
 				oElm = {
 					type: "alphaFloor"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaInv)
+			else if (arrEffects[nEffect] instanceof AscFormat.CAlphaInv)
 			{
 				oElm = {
-					color: SerColor(baseArrEffectLst[nEffect].unicolor),
+					color: SerColor(arrEffects[nEffect].unicolor),
 					type:  "alphaInv"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaMod)
+			else if (arrEffects[nEffect] instanceof AscFormat.CAlphaMod)
 			{
 				oElm = {
-					cont: SerEffectDag(baseArrEffectLst[nEffect].cont),
+					cont: SerEffectDag(arrEffects[nEffect].cont),
 					type: "alphaMod"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaModFix)
+			else if (arrEffects[nEffect] instanceof AscFormat.CAlphaModFix)
 			{
 				oElm = {
-					amt:  baseArrEffectLst[nEffect].amt,
+					amt:  arrEffects[nEffect].amt,
 					type: "alphaModFix"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaOutset)
+			else if (arrEffects[nEffect] instanceof AscFormat.CAlphaOutset)
 			{
 				oElm = {
-					rad:  baseArrEffectLst[nEffect].rad,
+					rad:  arrEffects[nEffect].rad,
 					type: "alphaOutset"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CAlphaRepl)
+			else if (arrEffects[nEffect] instanceof AscFormat.CAlphaRepl)
 			{
 				oElm = {
-					a:     baseArrEffectLst[nEffect].a,
+					a:     arrEffects[nEffect].a,
 					type: "alphaRepl"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CBiLevel)
+			else if (arrEffects[nEffect] instanceof AscFormat.CBiLevel)
 			{
 				oElm = {
-					thresh: baseArrEffectLst[nEffect].thresh,
+					thresh: arrEffects[nEffect].thresh,
 					type:   "biLvl"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CBlend)
+			else if (arrEffects[nEffect] instanceof AscFormat.CBlend)
 			{
 				oElm = {
-					cont:  SerEffectDag(baseArrEffectLst[nEffect].cont),
-					blend: baseArrEffectLst[nEffect].blend,
+					cont:  SerEffectDag(arrEffects[nEffect].cont),
+					blend: arrEffects[nEffect].blend,
 					type:  "blend"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CBlur)
+			else if (arrEffects[nEffect] instanceof AscFormat.CBlur)
 			{
 				oElm = {
-					grow: baseArrEffectLst[nEffect].grow,
-					rad:  baseArrEffectLst[nEffect].rad,
+					grow: arrEffects[nEffect].grow,
+					rad:  arrEffects[nEffect].rad,
 					type: "blur"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CClrChange)
+			else if (arrEffects[nEffect] instanceof AscFormat.CClrChange)
 			{
 				oElm = {
-					clrFrom: SerColor(baseArrEffectLst[nEffect].clrFrom),
-					clrTo:   SerColor(baseArrEffectLst[nEffect].clrTo),
-					useA:    baseArrEffectLst[nEffect].useA,
+					clrFrom: SerColor(arrEffects[nEffect].clrFrom),
+					clrTo:   SerColor(arrEffects[nEffect].clrTo),
+					useA:    arrEffects[nEffect].useA,
 					type:    "clrChange"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CClrRepl)
+			else if (arrEffects[nEffect] instanceof AscFormat.CClrRepl)
 			{
 				oElm = {
-					color: SerColor(baseArrEffectLst[nEffect].color),
+					color: SerColor(arrEffects[nEffect].color),
 					type:  "clrRepl"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CEffectContainer)
+			else if (arrEffects[nEffect] instanceof AscFormat.CEffectContainer)
 			{
 				oElm = {
-					cont: SerEffectDag(baseArrEffectLst[nEffect]),
+					cont: SerEffectDag(arrEffects[nEffect]),
 					type: "effCont"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CDuotone)
+			else if (arrEffects[nEffect] instanceof AscFormat.CDuotone)
 			{
 				var arrColors = [];
-				for (var nColor = 0; nColor < baseArrEffectLst[nEffect].colors.length; nColor++)
+				for (var nColor = 0; nColor < arrEffects[nEffect].colors.length; nColor++)
 				{
-					arrColors.push(SerColor(baseArrEffectLst[nEffect].colors[nColor]));
+					arrColors.push(SerColor(arrEffects[nEffect].colors[nColor]));
 				}
 				oElm = {
 					colors: arrColors,
 					type:   "duotone"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CEffectElement)
+			else if (arrEffects[nEffect] instanceof AscFormat.CEffectElement)
 			{
 				oElm = {
-					ref:  baseArrEffectLst[nEffect].ref,
+					ref:  arrEffects[nEffect].ref,
 					type: "effect"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CFillEffect)
+			else if (arrEffects[nEffect] instanceof AscFormat.CFillEffect)
 			{
 				oElm = {
-					fill: SerFill(baseArrEffectLst[nEffect].fill),
+					fill: SerFill(arrEffects[nEffect].fill),
 					type: "fill"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CFillOverlay)
+			else if (arrEffects[nEffect] instanceof AscFormat.CFillOverlay)
 			{
 				oElm = {
-					fill:  SerFill(baseArrEffectLst[nEffect].fill),
-					blend: baseArrEffectLst[nEffect].blend,
+					fill:  SerFill(arrEffects[nEffect].fill),
+					blend: arrEffects[nEffect].blend,
 					type:  "fillOvrl"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CGlow)
+			else if (arrEffects[nEffect] instanceof AscFormat.CGlow)
 			{
 				oElm = {
-					color: SerColor(baseArrEffectLst[nEffect].color),
-					rad:   baseArrEffectLst[nEffect].rad,
+					color: SerColor(arrEffects[nEffect].color),
+					rad:   arrEffects[nEffect].rad,
 					type:  "glow"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CGrayscl)
+			else if (arrEffects[nEffect] instanceof AscFormat.CGrayscl)
 			{
 				oElm = {
 					type: "gray"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CHslEffect)
+			else if (arrEffects[nEffect] instanceof AscFormat.CHslEffect)
 			{
 				oElm = {
-					hue:  baseArrEffectLst[nEffect].h,
-					lum:  baseArrEffectLst[nEffect].l,
-					sat:  baseArrEffectLst[nEffect].s,
+					hue:  arrEffects[nEffect].h,
+					lum:  arrEffects[nEffect].l,
+					sat:  arrEffects[nEffect].s,
 					type: "hsl"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CInnerShdw)
+			else if (arrEffects[nEffect] instanceof AscFormat.CInnerShdw)
 			{
 				oElm = {
-					color:   SerColor(baseArrEffectLst[nEffect].color),
-					blurRad: baseArrEffectLst[nEffect].blurRad,
-					dir:     baseArrEffectLst[nEffect].dir,
-					dist:    baseArrEffectLst[nEffect].dist,
+					color:   SerColor(arrEffects[nEffect].color),
+					blurRad: arrEffects[nEffect].blurRad,
+					dir:     arrEffects[nEffect].dir,
+					dist:    arrEffects[nEffect].dist,
 					type:    "innerShdw"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CLumEffect)
+			else if (arrEffects[nEffect] instanceof AscFormat.CLumEffect)
 			{
 				oElm = {
-					bright:   baseArrEffectLst[nEffect].bright,
-					contrast: baseArrEffectLst[nEffect].contrast,
+					bright:   arrEffects[nEffect].bright,
+					contrast: arrEffects[nEffect].contrast,
 					type:     "lum"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.COuterShdw)
+			else if (arrEffects[nEffect] instanceof AscFormat.COuterShdw)
 			{
 				oElm = {
-					color:        SerColor(baseArrEffectLst[nEffect].color),
-					algn:         baseArrEffectLst[nEffect].algn,
-					blurRad:      baseArrEffectLst[nEffect].blurRad,
-					dir:          baseArrEffectLst[nEffect].dir,
-					dist:         baseArrEffectLst[nEffect].dist,
-					kx:           baseArrEffectLst[nEffect].kx,
-					ky:           baseArrEffectLst[nEffect].ky,
-					rotWithShape: baseArrEffectLst[nEffect].rotWithShape,
-					sx:           baseArrEffectLst[nEffect].sx,
-					sy:           baseArrEffectLst[nEffect].sy,
+					color:        SerColor(arrEffects[nEffect].color),
+					algn:         arrEffects[nEffect].algn,
+					blurRad:      arrEffects[nEffect].blurRad,
+					dir:          arrEffects[nEffect].dir,
+					dist:         arrEffects[nEffect].dist,
+					kx:           arrEffects[nEffect].kx,
+					ky:           arrEffects[nEffect].ky,
+					rotWithShape: arrEffects[nEffect].rotWithShape,
+					sx:           arrEffects[nEffect].sx,
+					sy:           arrEffects[nEffect].sy,
 					type:         "outerShdw"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CPrstShdw)
+			else if (arrEffects[nEffect] instanceof AscFormat.CPrstShdw)
 			{
 				oElm = {
-					color: SerColor(baseArrEffectLst[nEffect].color),
-					dir:   baseArrEffectLst[nEffect].dir,
-					dist:  baseArrEffectLst[nEffect].dis,
-					prst:  baseArrEffectLst[nEffect].prst,
+					color: SerColor(arrEffects[nEffect].color),
+					dir:   arrEffects[nEffect].dir,
+					dist:  arrEffects[nEffect].dis,
+					prst:  arrEffects[nEffect].prst,
 					type:  "prstShdw"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CReflection)
+			else if (arrEffects[nEffect] instanceof AscFormat.CReflection)
 			{
 				oElm = {
-					algn:         baseArrEffectLst[nEffect].algn,
-					blurRad:      baseArrEffectLst[nEffect].blurRad,
-					dir:          baseArrEffectLst[nEffect].dir,
-					dist:         baseArrEffectLst[nEffect].dist,
-					endA:         baseArrEffectLst[nEffect].endA,
-					endPos:       baseArrEffectLst[nEffect].endPos,
-					fadeDir:      baseArrEffectLst[nEffect].fadeDir,
-					kx:           baseArrEffectLst[nEffect].kx,
-					ky:           baseArrEffectLst[nEffect].ky,
-					rotWithShape: baseArrEffectLst[nEffect].rotWithShape,
-					stA:          baseArrEffectLst[nEffect].stA,
-					stPos:        baseArrEffectLst[nEffect].stPos,
-					sx:           baseArrEffectLst[nEffect].sx,
-					sy:           baseArrEffectLst[nEffect].sy,
+					algn:         arrEffects[nEffect].algn,
+					blurRad:      arrEffects[nEffect].blurRad,
+					dir:          arrEffects[nEffect].dir,
+					dist:         arrEffects[nEffect].dist,
+					endA:         arrEffects[nEffect].endA,
+					endPos:       arrEffects[nEffect].endPos,
+					fadeDir:      arrEffects[nEffect].fadeDir,
+					kx:           arrEffects[nEffect].kx,
+					ky:           arrEffects[nEffect].ky,
+					rotWithShape: arrEffects[nEffect].rotWithShape,
+					stA:          arrEffects[nEffect].stA,
+					stPos:        arrEffects[nEffect].stPos,
+					sx:           arrEffects[nEffect].sx,
+					sy:           arrEffects[nEffect].sy,
 					type: "reflection"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CRelOff)
+			else if (arrEffects[nEffect] instanceof AscFormat.CRelOff)
 			{
 				oElm = {
-					tx:   baseArrEffectLst[nEffect].tx,
-					ty:   baseArrEffectLst[nEffect].ty,
+					tx:   arrEffects[nEffect].tx,
+					ty:   arrEffects[nEffect].ty,
 					type: "relOff"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CSoftEdge)
+			else if (arrEffects[nEffect] instanceof AscFormat.CSoftEdge)
 			{
 				oElm = {
-					rad:  baseArrEffectLst[nEffect].rad,
+					rad:  arrEffects[nEffect].rad,
 					type: "softEdge"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CTintEffect)
+			else if (arrEffects[nEffect] instanceof AscFormat.CTintEffect)
 			{
 				oElm = {
-					amt: baseArrEffectLst[nEffect].amt,
-					hue: baseArrEffectLst[nEffect].hue,
+					amt: arrEffects[nEffect].amt,
+					hue: arrEffects[nEffect].hue,
 					type: "tint"
 				}
 			}
-			else if (baseArrEffectLst[nEffect] instanceof AscFormat.CXfrmEffect)
+			else if (arrEffects[nEffect] instanceof AscFormat.CXfrmEffect)
 			{
 				oElm = {
-					kx: baseArrEffectLst[nEffect].kx,
-					ky: baseArrEffectLst[nEffect].ky,
-					sx: baseArrEffectLst[nEffect].sx,
-					sy: baseArrEffectLst[nEffect].sy,
-					tx: baseArrEffectLst[nEffect].tx,
-					ty: baseArrEffectLst[nEffect].ty,
+					kx: arrEffects[nEffect].kx,
+					ky: arrEffects[nEffect].ky,
+					sx: arrEffects[nEffect].sx,
+					sy: arrEffects[nEffect].sy,
+					tx: arrEffects[nEffect].tx,
+					ty: arrEffects[nEffect].ty,
 					type: "xfrm"
 				}
 			}
 			arrEffectLst.push(oElm);
 		}
-		return {
-			effectList: arrEffectLst,
-			name:       oEffectDag.name,
-			type:       oEffectDag.type
-		}
+
+		return arrEffectLst;
 	};
 	function SerFill(oFill)
 	{
@@ -1669,32 +1739,122 @@
 		if (!oBodyPr)
 			return oBodyPr;
 
+		var sAnchorType = null;
+		switch(oBodyPr.anchor)
+		{
+			case AscFormat.VERTICAL_ANCHOR_TYPE_BOTTOM:
+				sAnchorType = "b";
+				break;
+			case AscFormat.VERTICAL_ANCHOR_TYPE_CENTER:
+				sAnchorType = "ctr";
+				break;
+			case AscFormat.VERTICAL_ANCHOR_TYPE_DISTRIBUTED:
+				sAnchorType = "dist";
+				break;
+			case AscFormat.VERTICAL_ANCHOR_TYPE_JUSTIFIED:
+				sAnchorType = "just";
+				break;
+			case AscFormat.VERTICAL_ANCHOR_TYPE_TOP:
+				sAnchorType = "t";
+				break;
+		}
+
+		var sHorzOverflow = null;
+		switch(oBodyPr.horzOverflow)
+		{
+			case AscFormat.nOTClip:
+				sHorzOverflow = "clip";
+				break;
+			case AscFormat.nOTOwerflow:
+				sHorzOverflow = "overflow";
+				break;
+		}
+
+		var sVertOverflow = null;
+		switch( oBodyPr.vertOverflow)
+		{
+			case AscFormat.nOTClip:
+				sVertOverflow = "clip";
+				break;
+			case AscFormat.nOTEllipsis:
+				sVertOverflow = "ellipsis";
+				break;
+			case AscFormat.nOTOwerflow:
+				sVertOverflow = "overflow";
+				break;
+		}
+
+		var sVertType = null;
+		switch(oBodyPr.vert)
+		{
+			case AscFormat.nVertTTeaVert:
+				sVertType = "eaVert";
+				break;
+			case AscFormat.nVertTThorz:
+				sVertType = "horz";
+				break;
+			case AscFormat.nVertTTmongolianVert:
+				sVertType = "mongolianVert";
+				break;
+			case AscFormat.nVertTTvert:
+				sVertType = "vert";
+				break;
+			case AscFormat.nVertTTvert270:
+				sVertType = "vert270";
+				break;
+			case AscFormat.nVertTTwordArtVert:
+				sVertType = "wordArtVert";
+				break;
+			case AscFormat.nVertTTwordArtVertRtl:
+				sVertType = "wordArtVertRtl";
+				break;
+		}
+
+		var sWrapType = null;
+		switch (oBodyPr.wrap)
+		{
+			case AscFormat.nTWTNone:
+				sWrapType = "none";
+				break;
+			case AscFormat.nTWTSquare:
+				sWrapType = "square";
+				break;
+		}
+
 		return {
-			flatTx:               oBodyPr.flatTx,
-				normAutofit:      oBodyPr.textFit ? {
-					fontScale:      oBodyPr.fontScale,
-					lnSpcReduction: oBodyPr.lnSpcReduction
-				} : oBodyPr.flatTx,
-				prstTxWarp:       SerGeometry(oBodyPr.prstTxWarp),
-				anchor:           oBodyPr.anchor,
-				anchorCtr:        oBodyPr.anchorCtr,
-				bIns:             oBodyPr.bIns,
-				compatLnSpc:      oBodyPr.compatLnSpc,
-				forceAA:          oBodyPr.forceAA,
-				fromWordArt:      oBodyPr.fromWordArt,
-				horzOverflow:     oBodyPr.horzOverflow,
-				lIns:             oBodyPr.lIns,
-				numCol:           oBodyPr.numCol,
-				rIns:             oBodyPr.rIns,
-				rot:              oBodyPr.rot,
-				rtlCol:           oBodyPr.rtlCol,
-				spcCol:           oBodyPr.spcCol,
-				spcFirstLastPara: oBodyPr.spcFirstLastPara,
-				tIns:             oBodyPr.tIns,
-				upright:          oBodyPr.upright,
-				vert:             oBodyPr.vert,
-				vertOverflow:     oBodyPr.vertOverflow,
-				wrap:             oBodyPr.wrap
+			flatTx:           oBodyPr.flatTx != null ? private_MM2EMU(oBodyPr.flatTx) : oBodyPr.flatTx,
+			normAutofit:      SerTextFit(oBodyPr.textFit),
+			prstTxWarp:       SerGeometry(oBodyPr.prstTxWarp),
+			anchor:           sAnchorType,
+			anchorCtr:        oBodyPr.anchorCtr,
+			bIns:             private_MM2EMU(oBodyPr.bIns),
+			compatLnSpc:      oBodyPr.compatLnSpc,
+			forceAA:          oBodyPr.forceAA,
+			fromWordArt:      oBodyPr.fromWordArt,
+			horzOverflow:     sHorzOverflow,
+			lIns:             private_MM2EMU(oBodyPr.lIns),
+			numCol:           oBodyPr.numCol,
+			rIns:             private_MM2EMU(oBodyPr.rIns),
+			rot:              oBodyPr.rot,
+			rtlCol:           oBodyPr.rtlCol,
+			spcCol:           oBodyPr.spcCol !== false ? private_MM2EMU(oBodyPr.spcCol) : oBodyPr.spcCol,
+			spcFirstLastPara: oBodyPr.spcFirstLastPara,
+			tIns:             private_MM2EMU(oBodyPr.tIns),
+			upright:          oBodyPr.upright,
+			vert:             sVertType,
+			vertOverflow:     sVertOverflow,
+			wrap:             sWrapType
+		}
+	};
+	function SerTextFit(oTextFit)
+	{
+		if (!oTextFit)
+			return oTextFit;
+
+		return {
+			type:           oTextFit.type,
+			fontScale:      oBodyPr.fontScale,
+			lnSpcReduction: oBodyPr.lnSpcReduction
 		}
 	};
 	function SerLstStyle(oListStyle)
@@ -2311,16 +2471,6 @@
 		// paragraph style
 		var oParaStyle   = oParaPr.PStyle ? private_GetLogicDocument().Styles.Get(oParaPr.PStyle) : undefined;
 		
-		// spacing
-		var oSpacing = {
-			before:            oParaPr.Spacing.Before ? private_MM2Twips(oParaPr.Spacing.Before) : oParaPr.Spacing.Before,
-			beforePct:         oParaPr.Spacing.BeforePct,
-			beforeAutoSpacing: oParaPr.Spacing.BeforeAutoSpacing !== undefined ? (oParaPr.Spacing.BeforeAutoSpacing === true ? "on" : "off") : oParaPr.Spacing.BeforeAutoSpacing,
-			after:             oParaPr.Spacing.After ? private_MM2Twips(oParaPr.Spacing.After) : oParaPr.Spacing.After,
-			afterPct:          oParaPr.Spacing.AfterPct,
-			afterAutoSpacing:  oParaPr.Spacing.AfterAutoSpacing !== undefined ? (oParaPr.Spacing.AfterAutoSpacing === true ? "on" : "off") : oParaPr.Spacing.AfterAutoSpacing
-		};
-
 		// horizontal align
 		var sJc = undefined;
 		switch (oParaPr.Jc)
@@ -2342,65 +2492,16 @@
 				break;
 		}
 
-		switch (oParaPr.Spacing.LineRule)
-		{
-			case linerule_AtLeast:
-				oSpacing["lineRule"] = "atLeast";
-				oSpacing["line"]     = private_MM2Twips(oParaPr.Spacing.Line)
-				break;
-			case linerule_Auto:
-				oSpacing["lineRule"] = "auto";
-				oSpacing["line"]     = private_MM2Twips(oParaPr.Spacing.Line)
-				break;
-			case linerule_Exact:
-				oSpacing["lineRule"] = "exact";
-				oSpacing["line"]     = private_MM2Twips(oParaPr.Spacing.Line)
-				break;
-			default:
-				oSpacing["lineRule"] = undefined;
-				oSpacing["line"]     = undefined;
-				break;
-		}
-
 		return {
 			contextualSpacing: oParaPr.ContextualSpacing,
-
-			framePr: oParaPr.FramePr ? 
-			{
-				dropCap: oParaPr.FramePr.DropCap,
-				h:       oParaPr.FramePr.H,
-				hAnchor: oParaPr.FramePr.HAnchor,
-				hRule:   oParaPr.FramePr.HRule,
-				hSpace:  oParaPr.FramePr.HSpace,
-				lines:   oParaPr.FramePr.Lines,
-				vAnchor: oParaPr.FramePr.VAnchor,
-				vSpace:  oParaPr.FramePr.VSpace,
-				w:       oParaPr.FramePr.W,
-				wrap:    oParaPr.FramePr.Wrap,
-				x:       oParaPr.FramePr.X,
-				xAlign:  oParaPr.FramePr.XAlign,
-				y:       oParaPr.FramePr.Y,
-				yAlign:  oParaPr.FramePr.YAlign
-			} :  oParaPr.FramePr,
-
-			ind: oParaPr.Ind ? 
-			{
-				left:      oParaPr.Ind.Left      ? private_MM2Twips(oParaPr.Ind.Left)      : oParaPr.Ind.Left,
-				right:     oParaPr.Ind.Right     ? private_MM2Twips(oParaPr.Ind.Right)     : oParaPr.Ind.Right,
-				firstLine: oParaPr.Ind.FirstLine ? private_MM2Twips(oParaPr.Ind.FirstLine) : oParaPr.Ind.FirstLine
-			} : oParaPr.Ind,
-
-			jc:        sJc,
-			keepLines: oParaPr.KeepLines,
-			keepNext:  oParaPr.KeepNext,
-
-			numPr: oParaPr.NumPr ? {
-				ilvl:  oParaPr.NumPr.Lvl,
-				numId: oParaPr.NumPr.NumId
-			} : oParaPr.NumPr,
-
-			outlineLvl:      oParaPr.OutlineLvl,
-			pageBreakBefore: oParaPr.PageBreakBefore,
+			framePr:           SerFramePr(oParaPr.FramePr),
+			ind:               SerParaInd(oParaPr.Ind),
+			jc:                sJc,
+			keepLines:         oParaPr.KeepLines,
+			keepNext:          oParaPr.KeepNext,
+			numPr:             SerNumPr(oParaPr.NumPr),
+			outlineLvl:        oParaPr.OutlineLvl,
+			pageBreakBefore:   oParaPr.PageBreakBefore,
 
 			pBdr: oParaPr.Brd ? 
 			{
@@ -2411,16 +2512,94 @@
 				top:     SerBorder(oParaPr.Brd.Top)
 			} : oParaPr.Brd,
 
-			pPrChange: SerParaPr(oParaPr.PrChange),
-			pStyle:    SerStyle(oParaStyle),
-			shd:       SerShd(oParaPr.Shd),
-
-			spacing: oSpacing,
-
+			pPrChange:    SerParaPr(oParaPr.PrChange),
+			pStyle:       SerStyle(oParaStyle),
+			shd:          SerShd(oParaPr.Shd),
+			spacing:      SerParaSpacing(oParaPr.Spacing),
 			tabs:         SerTabs(oParaPr.Tabs),
 			widowControl: oParaPr.WidowControl,
 			bullet:       SerBullet(oParaPr.Bullet)
 		}
+	};
+	function SerFramePr(oFramePr)
+	{
+		if (!oFramePr)
+			return oFramePr;
+		
+		return {
+			dropCap: oFramePr.DropCap,
+			h:       oFramePr.H,
+			hAnchor: oFramePr.HAnchor,
+			hRule:   oFramePr.HRule,
+			hSpace:  oFramePr.HSpace,
+			lines:   oFramePr.Lines,
+			vAnchor: oFramePr.VAnchor,
+			vSpace:  oFramePr.VSpace,
+			w:       oFramePr.W,
+			wrap:    oFramePr.Wrap,
+			x:       oFramePr.X,
+			xAlign:  oFramePr.XAlign,
+			y:       oFramePr.Y,
+			yAlign:  oFramePr.YAlign
+		}
+	};
+	function SerParaInd(oParaInd)
+	{
+		if (!oParaInd)
+			return oParaInd;
+		
+		return {
+			left:      oParaInd.Left      ? private_MM2Twips(oParaInd.Left)      : oParaInd.Left,
+			right:     oParaInd.Right     ? private_MM2Twips(oParaInd.Right)     : oParaInd.Right,
+			firstLine: oParaInd.FirstLine ? private_MM2Twips(oParaInd.FirstLine) : oParaInd.FirstLine
+		}
+	};
+	function SerNumPr(oNumPr)
+	{
+		if (!oNumPr)
+			return oNumPr;
+
+		return {
+			ilvl:  oNumPr.Lvl,
+			numId: oNumPr.NumId
+		}
+	};
+	function SerParaSpacing(oParaSpacing)
+	{
+		if (!oParaSpacing)
+			return oParaSpacing;
+		
+		// spacing
+		var oSpacing = {
+			before:            oParaSpacing.Before ? private_MM2Twips(oParaSpacing.Before) : oParaSpacing.Before,
+			beforePct:         oParaSpacing.BeforePct,
+			beforeAutoSpacing: oParaSpacing.BeforeAutoSpacing !== undefined ? (oParaSpacing.BeforeAutoSpacing === true ? "on" : "off") : oParaSpacing.BeforeAutoSpacing,
+			after:             oParaSpacing.After ? private_MM2Twips(oParaSpacing.After) : oParaSpacing.After,
+			afterPct:          oParaSpacing.AfterPct,
+			afterAutoSpacing:  oParaSpacing.AfterAutoSpacing !== undefined ? (oParaSpacing.AfterAutoSpacing === true ? "on" : "off") : oParaSpacing.AfterAutoSpacing
+		};
+
+		switch (oParaSpacing.LineRule)
+		{
+			case linerule_AtLeast:
+				oSpacing["lineRule"] = "atLeast";
+				oSpacing["line"]     = private_MM2Twips(oParaSpacing.Line)
+				break;
+			case linerule_Auto:
+				oSpacing["lineRule"] = "auto";
+				oSpacing["line"]     = private_MM2Twips(oParaSpacing.Line)
+				break;
+			case linerule_Exact:
+				oSpacing["lineRule"] = "exact";
+				oSpacing["line"]     = private_MM2Twips(oParaSpacing.Line)
+				break;
+			default:
+				oSpacing["lineRule"] = undefined;
+				oSpacing["line"]     = undefined;
+				break;
+		}
+
+		return oSpacing;
 	};
 	function SerBlockLvlSdt(oSdt, aComplexFieldsToSave)
 	{
@@ -2460,7 +2639,7 @@
 
 		return oInlineSdt;
 	};
-	function SerParagraph(oPara, aComplexFieldsToSave)
+	function SerParagraph(oPara, aComplexFieldsToSave, aAll)
 	{
 		var oParaObject = {
 			pPr: SerParaPr(oPara.Pr),
@@ -2911,129 +3090,6 @@
 		var abtrNumb       = oNum.Numbering.AbstractNum[oNum.AbstractNumId];
 		var arrLvlOverride = [];
 
-		function SerNumLvl(oLvl, nLvl)
-		{
-			// align
-			var sJc = undefined;
-			switch (oLvl.Jc)
-			{
-				case align_Right:
-					sJc = "end";
-					break;
-				case align_Left:
-					sJc = "start";
-					break;
-				case align_Center:
-					sJc = "center";
-					break;
-				case align_Justify:
-					sJc = "both";
-					break;
-				case align_Distributed:
-					sJc = "distribute";
-					break;
-			}
-
-			// style
-			var oStyle   = oLvl.PStyle ? private_GetLogicDocument().Styles.Get(oLvl.PStyle) : undefined;
-
-			// suff
-			var sSuffType = undefined;
-			switch (oLvl.Suff)
-			{
-				case Asc.c_oAscNumberingSuff.Tab:
-					sSuffType = "tab";
-					break;
-				case Asc.c_oAscNumberingSuff.Space:
-					sSuffType = "space";
-					break;
-				case Asc.c_oAscNumberingSuff.None:
-					sSuffType = "nothing";
-					break;
-			}
-
-			// format type
-			var sFormatType = undefined;
-			switch (oLvl.Format)
-			{
-				case Asc.c_oAscNumberingFormat.Bullet:
-					sFormatType = "bullet";
-					break;
-				case Asc.c_oAscNumberingFormat.ChineseCounting:
-					sFormatType = "chineseCounting";
-					break;
-				case Asc.c_oAscNumberingFormat.ChineseCountingThousand:
-					sFormatType = "chineseCountingThousand";
-					break;
-				case Asc.c_oAscNumberingFormat.ChineseLegalSimplified:
-					sFormatType = "chineseLegalSimplified";
-					break;
-				case Asc.c_oAscNumberingFormat.Decimal:
-					sFormatType = "decimal";
-					break;
-				case Asc.c_oAscNumberingFormat.DecimalEnclosedCircle:
-					sFormatType = "decimalEnclosedCircle";
-					break;
-				case Asc.c_oAscNumberingFormat.DecimalZero:
-					sFormatType = "decimalZero";
-					break;
-				case Asc.c_oAscNumberingFormat.LowerLetter:
-					sFormatType = "lowerLetter";
-					break;
-				case Asc.c_oAscNumberingFormat.LowerRoman:
-					sFormatType = "lowerRoman";
-					break;
-				case Asc.c_oAscNumberingFormat.None:
-					sFormatType = "none";
-					break;
-				case Asc.c_oAscNumberingFormat.RussianLower:
-					sFormatType = "russianLower";
-					break;
-				case Asc.c_oAscNumberingFormat.RussianUpper:
-					sFormatType = "russianUpper";
-					break;
-				case Asc.c_oAscNumberingFormat.UpperLetter:
-					sFormatType = "upperLetter";
-					break;
-				case Asc.c_oAscNumberingFormat.UpperRoman:
-					sFormatType = "upperRoman";
-					break;
-				case Asc.c_oAscNumberingFormat.ChineseCounting:
-					sFormatType = "chineseCounting";
-					break;
-				case Asc.c_oAscNumberingFormat.ChineseCountingThousand:
-					sFormatType = "chineseCountingThousand";
-					break;
-				case Asc.c_oAscNumberingFormat.ChineseLegalSimplified:
-					sFormatType = "chineseLegalSimplified";
-					break;
-			}
-
-			return {
-				isLgl: oLvl.IsLgl,
-
-				legacy: oLvl.Legacy ? {
-					legacy:       oLvl.Legacy.Legacy,
-					legacyIndent: oLvl.Legacy.Indent,
-					legacySpace:  oLvl.Legacy.Space
-				} : oLvl.Legacy,
-
-				lvlJc:   sJc,
-				lvlText: {
-					val: oLvl.LvlText.length < 2 ? oLvl.LvlText[0].Value : oLvl.LvlText[1].Value
-				},
-				numFmt:  {
-					val: sFormatType
-				},
-				pPr:     SerParaPr(oLvl.ParaPr),
-				pStyle:  SerStyle(oStyle),
-				rPr:     SerTextPr(oLvl.TextPr),
-				start:   oLvl.Start,
-				suff:    sSuffType,
-				ilvl:    nLvl
-			}
-		}
-
 		// fill arrNumLvls
 		for (var nLvl = 0; nLvl < abtrNumb.Lvl.length; nLvl++)
 			arrNumLvls.push(SerNumLvl(abtrNumb.Lvl[nLvl], nLvl));
@@ -3060,6 +3116,134 @@
 				lvlOverride:   arrLvlOverride,
 				numId:         oNum.Id
 			}
+		}
+	};
+	function SerNumLvl(oLvl, nLvl)
+	{
+		// align
+		var sJc = undefined;
+		switch (oLvl.Jc)
+		{
+			case align_Right:
+				sJc = "end";
+				break;
+			case align_Left:
+				sJc = "start";
+				break;
+			case align_Center:
+				sJc = "center";
+				break;
+			case align_Justify:
+				sJc = "both";
+				break;
+			case align_Distributed:
+				sJc = "distribute";
+				break;
+		}
+
+		// style
+		var oStyle   = oLvl.PStyle ? private_GetLogicDocument().Styles.Get(oLvl.PStyle) : undefined;
+
+		// suff
+		var sSuffType = undefined;
+		switch (oLvl.Suff)
+		{
+			case Asc.c_oAscNumberingSuff.Tab:
+				sSuffType = "tab";
+				break;
+			case Asc.c_oAscNumberingSuff.Space:
+				sSuffType = "space";
+				break;
+			case Asc.c_oAscNumberingSuff.None:
+				sSuffType = "nothing";
+				break;
+		}
+
+		// format type
+		var sFormatType = undefined;
+		switch (oLvl.Format)
+		{
+			case Asc.c_oAscNumberingFormat.Bullet:
+				sFormatType = "bullet";
+				break;
+			case Asc.c_oAscNumberingFormat.ChineseCounting:
+				sFormatType = "chineseCounting";
+				break;
+			case Asc.c_oAscNumberingFormat.ChineseCountingThousand:
+				sFormatType = "chineseCountingThousand";
+				break;
+			case Asc.c_oAscNumberingFormat.ChineseLegalSimplified:
+				sFormatType = "chineseLegalSimplified";
+				break;
+			case Asc.c_oAscNumberingFormat.Decimal:
+				sFormatType = "decimal";
+				break;
+			case Asc.c_oAscNumberingFormat.DecimalEnclosedCircle:
+				sFormatType = "decimalEnclosedCircle";
+				break;
+			case Asc.c_oAscNumberingFormat.DecimalZero:
+				sFormatType = "decimalZero";
+				break;
+			case Asc.c_oAscNumberingFormat.LowerLetter:
+				sFormatType = "lowerLetter";
+				break;
+			case Asc.c_oAscNumberingFormat.LowerRoman:
+				sFormatType = "lowerRoman";
+				break;
+			case Asc.c_oAscNumberingFormat.None:
+				sFormatType = "none";
+				break;
+			case Asc.c_oAscNumberingFormat.RussianLower:
+				sFormatType = "russianLower";
+				break;
+			case Asc.c_oAscNumberingFormat.RussianUpper:
+				sFormatType = "russianUpper";
+				break;
+			case Asc.c_oAscNumberingFormat.UpperLetter:
+				sFormatType = "upperLetter";
+				break;
+			case Asc.c_oAscNumberingFormat.UpperRoman:
+				sFormatType = "upperRoman";
+				break;
+			case Asc.c_oAscNumberingFormat.ChineseCounting:
+				sFormatType = "chineseCounting";
+				break;
+			case Asc.c_oAscNumberingFormat.ChineseCountingThousand:
+				sFormatType = "chineseCountingThousand";
+				break;
+			case Asc.c_oAscNumberingFormat.ChineseLegalSimplified:
+				sFormatType = "chineseLegalSimplified";
+				break;
+		}
+
+		// lvl text
+		var oLvlText = {
+			val: oLvl.LvlText.length === 2 ? oLvl.LvlText[1].Value : oLvl.LvlText[0].Value
+		}
+		if (oLvl.LvlText.length)
+			oLvlText.numValue = oLvl.LvlText[0].Value;
+
+		return {
+			isLgl: oLvl.IsLgl,
+
+			legacy: oLvl.Legacy ? {
+				legacy:       oLvl.Legacy.Legacy,
+				legacyIndent: oLvl.Legacy.Indent,
+				legacySpace:  oLvl.Legacy.Space
+			} : oLvl.Legacy,
+
+			lvlJc:   sJc,
+			lvlText: oLvlText,
+			numFmt:  {
+				val: sFormatType
+			},
+			pPr:     SerParaPr(oLvl.ParaPr),
+			pStyle:  SerStyle(oStyle),
+			rPr:     SerTextPr(oLvl.TextPr),
+			restart: oLvl.Restart,
+			start:   oLvl.Start,
+			suff:    sSuffType,
+			ilvl:    nLvl
 		}
 	};
 	function SerTabs(oTabs)
@@ -3723,7 +3907,7 @@
 			return oBlipFill;
 
 		return {
-			blip: SerEffectDag(oBlipFill.Effects),
+			blip: SerEffects(oBlipFill.Effects),
 			srcRect: oBlipFill.srcRect ? {
 				b: oBlipFill.srcRect.b,
 				l: oBlipFill.srcRect.l,
@@ -3753,6 +3937,19 @@
 			nvPr:      SerNvPr(oUniNvPr.nvPr),
 			nvUniSpPr: SerNvUniSpPr(oUniNvPr.nvUniSpPr)
 		};
+	};
+	function SerNvUniSpPr(oNvUniSpPr)
+	{
+		if (!oNvUniSpPr)
+			return oNvUniSpPr;
+
+		return {
+			locks     : oNvUniSpPr.locks,
+			stCnxIdx  : oNvUniSpPr.stCnxIdx,
+			stCnxId   : oNvUniSpPr.stCnxId,
+			endCnxIdx : oNvUniSpPr.endCnxIdx,
+			endCnxId  : oNvUniSpPr.endCnxId
+		}
 	};
 	function SerBullet(oBullet)
 	{
@@ -3895,27 +4092,9 @@
 		}
 
 		return {
-			chart: {
-				autoTitleDeleted: oChartSpace.chart.autoTitleDeleted,
-				backwall:         SerWall(oChartSpace.chart.backWall),
-				dispBlanksAs:     oChartSpace.chart.dispBlanksAs,
-				floor:            SerWall(oChartSpace.chart.floor),
-				legend: {
-					layout:      SerLayout(oChartSpace.chart.legend.layout),
-					legendEntry: SerLegendEntries(oChartSpace.chart.legend.legendEntryes),
-					legendPos:   sLegendPos,
-					overlay:     oChartSpace.chart.legend.overlay,
-					spPr:        SerSpPr(oChartSpace.chart.legend.spPr),
-					txPr:        SerTxPr(oChartSpace.chart.legend.txPr)
-				},
-				pivotFmts:        SerPivotFmts(oChartSpace.chart.pivotFmts),
-				plotArea:         SerPlotArea(oChartSpace.chart.plotArea),
-				plotVisOnly:      oChartSpace.chart.plotVisOnly,
-				showDLblsOverMax: oChartSpace.chart.showDLblsOverMax,
-				sideWall:         SerWall(oChartSpace.chart.sideWall),
-				title:            SerTitle(oChartSpace.chart.title),
-				view3D:           SerView3D(oChartSpace.chart.view3D)
-			},
+			extX: private_MM2EMU(oChartSpace.extX),
+			extY: private_MM2EMU(oChartSpace.extY),
+			chart:          SerChart(oChartSpace.chart),
 			clrMapOvr:      oChartSpace.clrMapOvr ? oChartSpace.clrMapOvr.color_map : oChartSpace.clrMapOvr,
 			date1904:       oChartSpace.date1904,
 			externalData:   SerExternalData(oChartSpace.externalData),
@@ -3930,6 +4109,40 @@
 			userShapes:     oChartSpace.userShapes, /// ???
 			type:           "chartSpace"
 		};
+	};
+	function SerChart(oChart)
+	{
+		if (!oChart)
+			return oChart;
+
+		return {
+			autoTitleDeleted: oChart.autoTitleDeleted,
+			backwall:         SerWall(oChart.backWall),
+			dispBlanksAs:     oChart.dispBlanksAs,
+			floor:            SerWall(oChart.floor),
+			legend:           SerLegend(oChart.legend),
+			pivotFmts:        SerPivotFmts(oChart.pivotFmts),
+			plotArea:         SerPlotArea(oChart.plotArea),
+			plotVisOnly:      oChart.plotVisOnly,
+			showDLblsOverMax: oChart.showDLblsOverMax,
+			sideWall:         SerWall(oChart.sideWall),
+			title:            SerTitle(oChart.title),
+			view3D:           SerView3D(oChart.view3D)
+		}
+	};
+	function SerLegend(oLegend)
+	{
+		if (!oLegend)
+			return oLegend;
+		
+		return	{
+			layout:      SerLayout(oLegend.layout),
+			legendEntry: SerLegendEntries(oLegend.legendEntryes),
+			legendPos:   sLegendPos,
+			overlay:     oLegend.overlay,
+			spPr:        SerSpPr(oLegend.spPr),
+			txPr:        SerTxPr(oLegend.txPr)
+		}
 	};
 	function SerImage(oImgObject)
 	{
@@ -3951,17 +4164,23 @@
 		if (!oShapeObject)
 			return oShapeObject;
 
-		var oContentHolder = oShapeObject.textBoxContent || oShapeObject.txBody.content;
-
-		return {
-			nvSpPr:   SerUniNvPr(oShapeObject.nvSpPr),
-			spPr:     SerSpPr(oShapeObject.spPr),
-			style:    SerSpStyle(oShapeObject.style),
-			bodyPr:   SerBodyPr(oShapeObject.bodyPr),
-			lstStyle: oShapeObject.txBody ? SerLstStyle(oShapeObject.txBody.lstStyle) : null,
-			content:  SerDocContent(oContentHolder, aComplexFieldsToSave),
-			type:     "shape"
+		var oContentHolder     = oShapeObject.textBoxContent || oShapeObject.txBody.content;
+		
+		var oShape = {
+			extX:        private_MM2EMU(oShapeObject.extX),
+			extY:        private_MM2EMU(oShapeObject.extY),
+			nvSpPr:      SerUniNvPr(oShapeObject.nvSpPr),
+			spPr:        SerSpPr(oShapeObject.spPr),
+			style:       SerSpStyle(oShapeObject.style),
+			bodyPr:      SerBodyPr(oShapeObject.bodyPr),
+			content:     SerDocContent(oContentHolder, aComplexFieldsToSave),
+			type:        "shape",
 		}
+
+		if (oShapeObject.txBody)
+			oShape["lstStyle"] = SerLstStyle(oShapeObject.txBody.lstStyle);
+
+		return oShape; 
 	};
 	function SerTextPr(oTextPr)
 	{
@@ -4826,7 +5045,7 @@
 		oTextPr.Lang.EastAsia         = oPr["lang"].eastAsia;
 		oTextPr.Lang.Val              = oPr["lang"].val;
 		oTextPr.TextOutline           = oPr["outline"];
-		oTextPr.Position              = oPr["position"] ? private_PtToMM(oPr["position"] / 2.0) : oPr["position"];
+		oTextPr.Position              = oPr["position"] ? private_Pt2MM(oPr["position"] / 2.0) : oPr["position"];
 		oTextPr.RFonts.Ascii          = oPr["rFonts"].ascii;
 		oTextPr.RFonts.AsciiTheme     = oPr["rFonts"].asciiTheme;
 		oTextPr.RFonts.CS             = oPr["rFonts"].cs;
@@ -4837,7 +5056,7 @@
 		oTextPr.RFonts.HAnsiTheme     = oPr["rFonts"].hAnsiTheme;
 		oTextPr.RFonts.Hint           = oPr["rFonts"].hint;
 		oTextPr.PrChange              = oPr["rPrChange"] ? TextPrFromJSON(oPr["rPrChange"]) : oPr["rPrChange"];
-		oTextPr.RStyle                = oStyle ? oDocument.Styles.GetStyleIdByName(oStyle.Name) : oStyle
+		oTextPr.RStyle                = oStyle ? oDocument.Styles.GetStyleIdByName(oStyle.Name) : oTextPr.RStyle;
 		oTextPr.RTL                   = oPr["rtl"];
 		oTextPr.Shd                   = oPr["shd"] ? ShadeFromJSON(oPr["shd"]) : oPr["shd"]; /// ???
 		oTextPr.SmallCaps             = oPr["smallCaps"];
@@ -4881,7 +5100,7 @@
 	{
 		return new ApiRun(oRun);
 	};
-	function ParagraphFromJSON(oParsedJSON, notCompletedFields)
+	function ParagraphFromJSON(oParsedJSON, oParent, notCompletedFields, oPrevNumIdInfo)
 	{
 		if (!notCompletedFields)
 			notCompletedFields = [];
@@ -4889,11 +5108,11 @@
 		var aContent    = oParsedJSON["content"];
 		var oPr         = oParsedJSON["pPr"];
 
-		var oParaPr   = ParaPrFromJSON(oPr);
+		var oParaPr   = ParaPrFromJSON(oPr, oParsedJSON.numbering, oPrevNumIdInfo);
 		var oPara     = new AscCommonWord.Paragraph(private_GetDrawingDocument(), null);
 		oPara.Pr      = oParaPr;
 
-		oPara.Parent = private_GetLogicDocument();
+		oPara.Parent = oParent || private_GetLogicDocument();
 
 		for (var nElm = 0; nElm < aContent.length; nElm++)
 		{
@@ -4919,7 +5138,7 @@
 
 		return oPara;
 	};
-	function ParaPrFromJSON(oPr)
+	function ParaPrFromJSON(oPr, oParsedNumbernig, oPrevNumIdInfo)
 	{
 		var oParaPr = new AscCommonWord.CParaPr();
 		
@@ -4946,54 +5165,6 @@
 				break;
 		}
 
-		switch (oPr.spacing.lineRule)
-		{
-			case "atLeast":
-				oParaPr.Spacing["LineRule"] = linerule_AtLeast;
-				oParaPr.Spacing["Line"]     = oPr.spacing.line ? private_Twips2MM(oPr.spacing.line) : oPr.spacing.line;
-				break;
-			case "auto":
-				oParaPr.Spacing["LineRule"] = linerule_Auto;
-				oParaPr.Spacing["Line"]     = oPr.spacing.line ? private_Twips2MM(oPr.spacing.line) : oPr.spacing.line;
-				break;
-			case "exact":
-				oParaPr.Spacing["LineRule"] = linerule_Exact;
-				oParaPr.Spacing["Line"]     = oPr.spacing.line ? private_Twips2MM(oPr.spacing.line) : oPr.spacing.line;
-				break;
-			default:
-				oParaPr.Spacing["LineRule"] = undefined;
-				oParaPr.Spacing["Line"]     = undefined;
-				break;
-		}
-		
-		oParaPr.Spacing.Before            = oPr.spacing.before ? private_Twips2MM(oPr.spacing.before) : oPr.spacing.before;
-		oParaPr.Spacing.BeforePct         =	oPr.spacing.beforePct;
-		oParaPr.Spacing.BeforeAutoSpacing =	oPr.spacing.beforeAutoSpacing !== undefined ? (oPr.spacing.beforeAutoSpacing === true ? "on" : "off") : oPr.spacing.beforeAutoSpacing;
-		oParaPr.Spacing.After             = oPr.spacing.after ? private_Twips2MM(oPr.spacing.after) : oPr.spacing.after;
-		oParaPr.Spacing.AfterPct          = oPr.spacing.afterPct;
-		oParaPr.Spacing.AfterAutoSpacing  = oPr.spacing.afterAutoSpacing !== undefined ? (oPr.spacing.afterAutoSpacing === true ? "on" : "off") : oPr.spacing.afterAutoSpacing;
-
-		if (oPr.framePr)
-		{
-			oParaPr.FramePr         = new CFramePr();
-			oParaPr.FramePr.DropCap = oPr.framePr.dropCap;
-			oParaPr.FramePr.H       = oPr.framePr.h;
-			oParaPr.FramePr.HAnchor = oPr.framePr.hAnchor;
-			oParaPr.FramePr.HRule   = oPr.framePr.hRule;
-			oParaPr.FramePr.HSpace  = oPr.framePr.hSpace;
-			oParaPr.FramePr.Lines   = oPr.framePr.lines;
-			oParaPr.FramePr.VAnchor = oPr.framePr.vAnchor;
-			oParaPr.FramePr.VSpace  = oPr.framePr.vSpace;
-			oParaPr.FramePr.W       = oPr.framePr.w;
-			oParaPr.FramePr.Wrap    = oPr.framePr.wrap;
-			oParaPr.FramePr.X       = oPr.framePr.x;
-			oParaPr.FramePr.XAlign  = oPr.framePr.xAlign;
-			oParaPr.FramePr.Y       = oPr.framePr.y;
-			oParaPr.FramePr.YAlign  = oPr.framePr.yAlign;
-		}
-		else
-			oParaPr.FramePr = oPr.framePr;
-
 		// style 
 		var oStyle    = oPr.pStyle ? StyleFromJSON(oPr.pStyle) : oPr.pStyle;
 		var oDocument = private_GetLogicDocument();
@@ -5014,26 +5185,275 @@
 			}
 		}
 
+		oParaPr.FramePr         = oPr.framePr       ? FramePrFromJSON(oPr.framePr)        : oParaPr.FramePr;
+		oParaPr.Spacing         = oPr.spacing       ? ParaSpacingFromJSON(oPr.spacing)    : oParaPr.Spacing;
 		oParaPr.Ind.Left        = oPr.ind.left      ? private_Twips2MM(oPr.ind.left)      : oPr.ind.left;
 		oParaPr.Ind.Right       = oPr.ind.right     ? private_Twips2MM(oPr.ind.right)     : oPr.ind.right;
 		oParaPr.Ind.FirstLine   = oPr.ind.firstLine ? private_Twips2MM(oPr.ind.firstLine) : oPr.ind.firstLine;
 		oParaPr.Jc              = nJc;
 		oParaPr.KeepLines       = oPr.keepLines;
 		oParaPr.KeepNext        = oPr.keepNext;
-		oParaPr.NumPr           = oPr.numPr ? new CNumPr(oPr.numPr.numId, oPr.numPr.ilvl) : oPr.numPr;
+		oParaPr.NumPr           = oPr.numPr        ? NumPrFromJSON(oPr.numPr, oParsedNumbernig, oPrevNumIdInfo) : oParaPr.NumPr;
 		oParaPr.OutlineLvl      = oPr.outlineLvl;
 		oParaPr.Brd.Between     = oPr.pBdr.between ? DocBorderFromJSON(oPr.pBdr.between)  : oPr.pBdr.between;
 		oParaPr.Brd.Bottom      = oPr.pBdr.bottom  ? DocBorderFromJSON(oPr.pBdr.bottom)   : oPr.pBdr.bottom;
 		oParaPr.Brd.Left        = oPr.pBdr.left    ? DocBorderFromJSON(oPr.pBdr.left)     : oPr.pBdr.left;
 		oParaPr.Brd.Right       = oPr.pBdr.right   ? DocBorderFromJSON(oPr.pBdr.right)    : oPr.pBdr.right;
 		oParaPr.Brd.Top         = oPr.pBdr.top     ? DocBorderFromJSON(oPr.pBdr.top)      : oPr.pBdr.top;
-		oParaPr.PStyle          = oStyle ? oDocument.Styles.GetStyleIdByName(oStyle.Name) : oStyle;
+		oParaPr.PStyle          = oStyle ? oDocument.Styles.GetStyleIdByName(oStyle.Name) : oParaPr.PStyle;
 		oParaPr.PageBreakBefore = oPr.pageBreakBefore;
 		oParaPr.Shd             = oPr.shd  ? ShadeFromJSON(oPr.shd) : oPr.shd;
 		oParaPr.Tabs            = oPr.tabs ? TabsFromJSON(oPr.tabs) : oPr.tabs;
 		oParaPr.WidowControl    = oPr.widowControl;
 
 		return oParaPr;
+	};
+	function FramePrFromJSON(oParsedFramePr)
+	{
+		var oFramePr = new CFramePr();
+
+		oFramePr.DropCap = oParsedFramePr.dropCap;
+		oFramePr.H       = oParsedFramePr.h;
+		oFramePr.HAnchor = oParsedFramePr.hAnchor;
+		oFramePr.HRule   = oParsedFramePr.hRule;
+		oFramePr.HSpace  = oParsedFramePr.hSpace;
+		oFramePr.Lines   = oParsedFramePr.lines;
+		oFramePr.VAnchor = oParsedFramePr.vAnchor;
+		oFramePr.VSpace  = oParsedFramePr.vSpace;
+		oFramePr.W       = oParsedFramePr.w;
+		oFramePr.Wrap    = oParsedFramePr.wrap;
+		oFramePr.X       = oParsedFramePr.x;
+		oFramePr.XAlign  = oParsedFramePr.xAlign;
+		oFramePr.Y       = oParsedFramePr.y;
+		oFramePr.YAlign  = oParsedFramePr.yAlign;
+
+		return oFramePr;		
+	};
+	function NumPrFromJSON(oParsedNumPr, oParsedNumbering, oPrevNumIdInfo)
+	{
+		if (oPrevNumIdInfo.sPrevCreatedNumId)
+		{
+			if (oParsedNumPr.numId === oPrevNumIdInfo.nNumId && oPrevNumIdInfo.sPrevCreatedNumId)
+			{
+				return new CNumPr(oPrevNumIdInfo.sPrevCreatedNumId, oParsedNumPr.ilvl);
+			}
+		}
+		
+		// numbering
+		var sNumId  = NumberingFromJSON(oParsedNumbering); // тут создаем AbstrackNum и CNum 
+		var nNumLvl = oParsedNumPr.ilvl;
+
+		oPrevNumIdInfo.sPrevCreatedNumId = sNumId;
+		oPrevNumIdInfo.nNumId            = oParsedNumPr.numId;
+
+		return new CNumPr(sNumId, nNumLvl);
+	};
+	function ParaSpacingFromJSON(oParsedSpacing)
+	{
+		var oSpacing = new CParaSpacing();
+
+		oSpacing.Before            = oParsedSpacing.before != undefined ? private_Twips2MM(oParsedSpacing.before) : oSpacing.Before;
+		oSpacing.BeforePct         = oParsedSpacing.beforePct != undefined ? oParsedSpacing.beforePct : oSpacing.BeforePct;
+		oSpacing.BeforeAutoSpacing = oParsedSpacing.beforeAutoSpacing != undefined ? (oParsedSpacing.beforeAutoSpacing === "on" ? true : false) : oSpacing.BeforeAutoSpacing;
+		oSpacing.After             = oParsedSpacing.after != undefined ? private_Twips2MM(oParsedSpacing.after) : oSpacing.After;
+		oSpacing.AfterPct          = oParsedSpacing.afterPct != undefined ? oParsedSpacing.afterPct : oSpacing.AfterPct;
+		oSpacing.AfterAutoSpacing  = oParsedSpacing.afterAutoSpacing != undefined ? (oParsedSpacing.afterAutoSpacing === "on" ? true : false) : oSpacing.AfterAutoSpacing;
+
+		switch (oParsedSpacing.lineRule)
+		{
+			case "atLeast":
+				oSpacing.LineRule = linerule_AtLeast;
+				oSpacing.Line     = oParsedSpacing.Line != undefined ? private_Twips2MM(oParsedSpacing.Line) : oSpacing.Line;
+				break;
+			case "auto":
+				oSpacing.LineRule = linerule_Auto;
+				oSpacing.Line     = oParsedSpacing.Line != undefined ? private_Twips2MM(oParsedSpacing.Line) : oSpacing.Line;
+				break;
+			case "exact":
+				oSpacing.LineRule = linerule_Exact;
+				oSpacing.Line     = oParsedSpacing.Line != undefined ? private_Twips2MM(oParsedSpacing.Line) : oSpacing.Line;
+				break;
+			default:
+				oSpacing.LineRule = undefined;
+				oSpacing.Line     = undefined;
+				break;
+		}
+
+		return oSpacing;
+	};
+	function NumberingFromJSON(oParsedNumbering)
+	{
+		var oDocument    = private_GetLogicDocument();
+		var oAbstractNum = AbstractNumFromJSON(oParsedNumbering.abstractNum);
+		var oNum         = new CNum(private_GetLogicDocument().Numbering, oAbstractNum.GetId());
+		oNum             = CNumFromJSON(oNum, oParsedNumbering.num.lvlOverride);
+		var nNumId       = oNum.GetId();
+
+		oDocument.Numbering.Num[nNumId] = oNum;
+
+		return nNumId;
+	};
+	function AbstractNumFromJSON(oParsedAbstrNum)
+	{
+		var oDocument    = private_GetLogicDocument();
+		var oAbstractNum = new CAbstractNum();
+
+		oAbstractNum.Lvl = [];
+		for (var nLvl = 0; nLvl < oParsedAbstrNum.lvl.length; nLvl++)
+			oAbstractNum.Lvl.push(NumLvlFromJSON(oParsedAbstrNum.lvl[nLvl]));
+
+		oAbstractNum.NumStyleLink = oParsedAbstrNum.numStyleLink;
+		oAbstractNum.styleLink    = oParsedAbstrNum.StyleLink;
+
+		//if (oDocument.Numbering.AbstractNum[oParsedAbstrNum.abstractNumId] && oAbstractNum.isEqual(oDocument.Numbering.AbstractNum[oParsedAbstrNum.abstractNumId]))
+		//	return oDocument.Numbering.AbstractNum[oParsedAbstrNum.abstractNumId];
+
+		oDocument.Numbering.AbstractNum[oAbstractNum.GetId()] = oAbstractNum;
+		return oAbstractNum;
+	};
+	function CNumFromJSON(oNum, arrLvlOverride)
+	{
+		for (var nLvl = 0; nLvl < arrLvlOverride; nLvl++)
+			oNum.LvlOverride.push(new CLvlOverride(NumLvlFromJSON(arrLvlOverride[nLvl].lvl), arrLvlOverride[nLvl].ilvl, arrLvlOverride[nLvl].startOverride));
+	
+		return oNum;
+	};
+	function NumLvlFromJSON(oParsedNumLvl)
+	{
+		var oNumLvl = new CNumberingLvl();
+
+		// align
+		var nJc = undefined;
+		switch (oParsedNumLvl.lvlJc)
+		{
+			case "end":
+				nJc = align_Right;
+				break;
+			case "start":
+				nJc = align_Left;
+				break;
+			case "center":
+				nJc = align_Center;
+				break;
+			case "both":
+				nJc = align_Justify;
+				break;
+			case "distribute":
+				nJc = align_Distributed;
+				break;
+		}
+
+		// style 
+		var oStyle    = oParsedNumLvl.pStyle ? StyleFromJSON(oParsedNumLvl.pStyle) : oParsedNumLvl.pStyle;
+		var oDocument = private_GetLogicDocument();
+		if (oStyle)
+		{
+			var nExistingStyle = oDocument.Styles.GetStyleIdByName(oStyle.Name);
+			// если такого стиля нет - добавляем новый
+			if (nExistingStyle === null)
+				oDocument.Styles.Add(oStyle);
+			else
+			{
+				// если стили идентичны, стиль не добавляем
+				if (!oStyle.IsEqual(oDocument.Styles.Get(nExistingStyle)))
+				{
+					oStyle.Set_Name("Custom_Style " + AscCommon.g_oIdCounter.Get_NewId());
+					oDocument.Styles.Add(oStyle);
+				}
+			}
+		}
+
+		// suff
+		var nSuffType = undefined;
+		switch (oParsedNumLvl.suff)
+		{
+			case "tab":
+				nSuffType = Asc.c_oAscNumberingSuff.Tab;
+				break;
+			case "space":
+				nSuffType = Asc.c_oAscNumberingSuff.Space;
+				break;
+			case "nothing":
+				nSuffType = Asc.c_oAscNumberingSuff.None;
+				break;
+		}
+
+		// format type
+		var nFormatType = undefined;
+		switch (oParsedNumLvl.numFmt.val)
+		{
+			case "bullet":
+				nFormatType = Asc.c_oAscNumberingFormat.Bullet;
+				break;
+			case "chineseCounting":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCounting;
+				break;
+			case "chineseCountingThousand":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCountingThousand;
+				break;
+			case "chineseLegalSimplified":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseLegalSimplified;
+				break;
+			case "decimal":
+				nFormatType = Asc.c_oAscNumberingFormat.Decimal;
+				break;
+			case "decimalEnclosedCircle":
+				nFormatType = Asc.c_oAscNumberingFormat.DecimalEnclosedCircle;
+				break;
+			case "decimalZero":
+				nFormatType = Asc.c_oAscNumberingFormat.DecimalZero;
+				break;
+			case "lowerLetter":
+				nFormatType = Asc.c_oAscNumberingFormat.LowerLetter;
+				break;
+			case "lowerRoman":
+				nFormatType = Asc.c_oAscNumberingFormat.LowerRoman;
+				break;
+			case "none":
+				nFormatType = Asc.c_oAscNumberingFormat.None;
+				break;
+			case "russianLower":
+				nFormatType = Asc.c_oAscNumberingFormat.RussianLower;
+				break;
+			case "russianUpper":
+				nFormatType = Asc.c_oAscNumberingFormat.RussianUpper;
+				break;
+			case "upperLetter":
+				nFormatType = Asc.c_oAscNumberingFormat.UpperLetter;
+				break;
+			case "upperRoman":
+				nFormatType = Asc.c_oAscNumberingFormat.UpperRoman;
+				break;
+			case "chineseCounting":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCounting;
+				break;
+			case "chineseCountingThousand":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCountingThousand;
+				break;
+			case "chineseLegalSimplified":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseLegalSimplified;
+				break;
+		}
+
+		oNumLvl.IsLgl   = oParsedNumLvl.isLgl;
+		oNumLvl.Legacy  = oParsedNumLvl.legacy ? new CNumberingLvlLegacy(oParsedNumLvl.legacy.legacy, oParsedNumLvl.legacy.legacyIndent, oParsedNumLvl.legacy.legacySpace) : oNumLvl.Legacy;
+		oNumLvl.Jc      = nJc;
+		oNumLvl.Format  = nFormatType;
+		oNumLvl.ParaPr  = ParaPrFromJSON(oParsedNumLvl.pPr);
+		oNumLvl.TextPr  = TextPrFromJSON(oParsedNumLvl.rPr);
+		oNumLvl.Suff    = nSuffType;
+		oNumLvl.Restart = oParsedNumLvl.restart;
+		oNumLvl.Start   = oParsedNumLvl.start;
+		oNumLvl.PStyle  = oStyle ? oDocument.Styles.GetStyleIdByName(oStyle.Name) : oNumLvl.PStyle;
+		if (oParsedNumLvl.lvlText.numValue !== undefined)
+		{
+			oNumLvl.LvlText[0] = new CNumberingLvlTextNum(oParsedNumLvl.lvlText.numValue);
+			oNumLvl.LvlText[1] = new CNumberingLvlTextString(oParsedNumLvl.lvlText.val);
+		}
+		else
+			oNumLvl.LvlText[0] = new CNumberingLvlTextString(oParsedNumLvl.lvlText.val);
+
+		return oNumLvl;
 	};
 	function HyperlinkFromJSON(oParsedLink, oParentPara, notCompletedFields)
 	{
@@ -5360,8 +5780,8 @@
 			oParentTable.TableLook.m_bFirst_Row = oParsedPr.tblLook ? oParsedPr.tblLook.firstRow    : oParentTable.TableLook.m_bFirst_Row;
 			oParentTable.TableLook.m_bLast_Col  = oParsedPr.tblLook ? oParsedPr.tblLook.lastColumn  : oParentTable.TableLook.m_bLast_Col;
 			oParentTable.TableLook.m_bLast_Row  = oParsedPr.tblLook ? oParsedPr.tblLook.lastRow     : oParentTable.TableLook.m_bLast_Row;
-			oParentTable.TableLook.m_bBand_Hor  = oParsedPr.tblLook ? !oParsedPr.tblLook.noHBand     : oParentTable.TableLook.m_bBand_Hor;
-			oParentTable.TableLook.m_bBand_Ver  = oParsedPr.tblLook ? !oParsedPr.tblLook.noVBand     : oParentTable.TableLook.m_bBand_Ver;
+			oParentTable.TableLook.m_bBand_Hor  = oParsedPr.tblLook ? !oParsedPr.tblLook.noHBand    : oParentTable.TableLook.m_bBand_Hor;
+			oParentTable.TableLook.m_bBand_Ver  = oParsedPr.tblLook ? !oParsedPr.tblLook.noVBand    : oParentTable.TableLook.m_bBand_Ver;
 
 			// position prop
 			if (oParsedPr.tblpPr)
@@ -5492,12 +5912,15 @@
 		if (!notCompletedFields)
 			notCompletedFields = [];
 
+		var oPrevNumIdInfo = {};
+		//var sNextNumId = null;
+
 		for (var nElm = 0; nElm < aContent.length; nElm++)
 		{
 			switch (aContent[nElm].type)
 			{
 				case "paragraph":
-					oDocContent.AddToContent(oDocContent.Content.length, ParagraphFromJSON(aContent[nElm], notCompletedFields), false);
+					oDocContent.AddToContent(oDocContent.Content.length, ParagraphFromJSON(aContent[nElm], oDocContent, notCompletedFields, oPrevNumIdInfo), false);
 					break;
 				case "table":
 					oDocContent.AddToContent(oDocContent.Content.length, TableFromJSON(aContent[nElm], notCompletedFields), false);
@@ -5634,17 +6057,29 @@
 
 		return oBorderObj;
 	};
-	function StyleRefFromJSON(oStyleRef)
+	function StyleRefFromJSON(oParsedRef)
 	{
 		var oStyleRefObj = new AscFormat.StyleRef();
 		
-		if (oStyleRef.lineRef)
+		if (oParsedRef.lineRef)
 		{
-			oStyleRefObj.idx   = oStyleRef.idx;
-			oStyleRefObj.Color = ColorFromJSON(oStyleRef.color);
+			oStyleRefObj.idx   = oParsedRef.idx;
+			oStyleRefObj.Color = ColorFromJSON(oParsedRef.color);
 		}
 		
 		return oStyleRefObj;
+	};
+	function FontRefFromJSON(oParsedRef)
+	{
+		var oFontRefObj = new AscFormat.FontRef();
+		
+		if (oParsedRef.lineRef)
+		{
+			oFontRefObj.idx   = oParsedRef.idx;
+			oFontRefObj.Color = ColorFromJSON(oParsedRef.color);
+		}
+		
+		return oFontRefObj;
 	};
 	function FillFromJSON(oFill)
 	{
@@ -6109,9 +6544,61 @@
 		{
 			case "image":
 				return new ApiImage(ImageFromJSON(oParsedDrawing.graphic, oDrawing));
+			case "shape":
+				return new ApiShape(ShapeFromJSON(oParsedDrawing.graphic, oDrawing));
+			case "chart":
+				return new ApiChart(ChartFromJSON(oParsedDrawing.graphic, oDrawing));
 		}
 	};
-	
+	function ChartFromJSON(oParsedChart, oParentDrawing)
+	{
+		var oDrawingDocument = private_GetDrawingDocument();
+		var nW = private_EMU2MM(nWidth);
+		var nH = private_EMU2MM(nHeight);
+		var oDrawing = new ParaDrawing( nW, nH, null, oDrawingDocument, null, null);
+		var oChartSpace = AscFormat.builder_CreateChart(nW, nH, sType, aCatNames, aSeriesNames, aSeries, nStyleIndex);
+		if(!oChartSpace)
+		{
+			return null;
+		}
+		oChartSpace.setParent(oDrawing);
+		oDrawing.Set_GraphicObject(oChartSpace);
+		oDrawing.setExtent(oChartSpace.spPr.xfrm.extX, oChartSpace.spPr.xfrm.extY );
+
+		return oChartSpace;
+	};
+	function ShapeFromJSON(oParsedShape, oParentDrawing)
+	{
+		var oLogicDocument   = private_GetLogicDocument();
+		var oDrawingDocuemnt = private_GetDrawingDocument();
+
+		var sType   = sType || "rect";
+        var nWidth  = private_EMU2MM(oParsedShape.extX) || 914400;
+	    var nHeight = private_EMU2MM(oParsedShape.extY) || 914400;
+		var nW = private_EMU2MM(nWidth);
+		var nH = private_EMU2MM(nHeight);
+
+		var oShapeTrack = new AscFormat.NewShapeTrack(sType, 0, 0, oLogicDocument.theme, null, null, null, 0);
+		oShapeTrack.track({}, nW, nH);
+		var oShape = oShapeTrack.getShape(true, oDrawingDocuemnt, null);
+
+		oShape.setParent(oParentDrawing);
+		oParentDrawing.Set_GraphicObject(oShape);
+
+		oShape.nvSpPr = oParsedShape.nvSpPr ? UniNvPrFromJSON(oParsedShape.nvSpPr) : oShape.nvSpPr;
+		oShape.spPr   = SpPrFromJSON(oParsedShape.spPr);
+		oShape.style  = oParsedShape.style  ? SpStyleFromJSON(oParsedShape.style) : oShape.style;
+		oShape.bodyPr = oParsedShape.bodyPr ? BodyPrFromJSON(oParsedShape.bodyPr) : oParsedShape.bodyPr;
+
+		if (!oParsedShape.lstStyle)
+			oShape.textBoxContent = DocContentFromJSON(oParsedShape.content)
+		else
+		{
+
+		}
+
+		return oShape;
+	};
 	function ImageFromJSON(oParsedImage, oParentDrawing)
 	{
 		var nW     = private_EMU2MM(oParsedImage.extX);
@@ -6123,6 +6610,240 @@
 
 		oImage.blipFill    = BlipFillFromJSON(oParsedImage.blipFill);
 		oImgObject.nvPicPr = UniNvPrFromJSON(oParsedImage.nvPicPr);
+		oImgObject.spPr    = SpPrFromJSON(oParsedImage.spPr);
+
+		return oImage;
+	};
+	function SpStyleFromJSON(oParsedSpStyle)
+	{
+		var oStyle = new AscFormat.CShapeStyle();
+
+		oStyle.lnRef     = oParsedSpStyle.lnRef     ? StyleRefFromJSON(oParsedSpStyle.lnRef)     : oStyle.lnRef;
+		oStyle.fillRef   = oParsedSpStyle.fillRef   ? StyleRefFromJSON(oParsedSpStyle.fillRef)   : oStyle.fillRef;
+		oStyle.effectRef = oParsedSpStyle.effectRef ? StyleRefFromJSON(oParsedSpStyle.effectRef) : oStyle.effectRef;
+		oStyle.fontRef   = oParsedSpStyle.fontRef   ? FontRefFromJSON(oParsedSpStyle.fontRef)    : oStyle.fontRef;
+		
+		return oStyle;
+	};
+	function BodyPrFromJSON(oParsedBodyPr)
+	{
+		var oBodyPr = new AscFormat.CBodyPr();
+
+		var nAnchorType = null;
+		switch(oParsedBodyPr.anchor)
+		{
+			case "b":
+				nAnchorType = AscFormat.VERTICAL_ANCHOR_TYPE_BOTTOM;
+				break;
+			case "ctr":
+				nAnchorType = AscFormat.VERTICAL_ANCHOR_TYPE_CENTER;
+				break;
+			case "dist":
+				nAnchorType = AscFormat.VERTICAL_ANCHOR_TYPE_DISTRIBUTED;
+				break;
+			case "just":
+				nAnchorType = AscFormat.VERTICAL_ANCHOR_TYPE_JUSTIFIED;
+				break;
+			case "t":
+				nAnchorType = AscFormat.VERTICAL_ANCHOR_TYPE_TOP;
+				break;
+		}
+
+		var nHorzOverflow = null;
+		switch(oParsedBodyPr.horzOverflow)
+		{
+			case "clip":
+				nHorzOverflow = AscFormat.nOTClip;
+				break;
+			case "overflow":
+				nHorzOverflow = AscFormat.nOTOwerflow;
+				break;
+		}
+
+		var nVertOverflow = null;
+		switch(oParsedBodyPr.vertOverflow)
+		{
+			case "clip":
+				nVertOverflow = AscFormat.nOTClip;
+				break;
+			case "ellipsis":
+				nVertOverflow = AscFormat.nOTEllipsis;
+				break;
+			case "overflow":
+				nVertOverflow = AscFormat.nOTOwerflow;
+				break;
+		}
+
+		var nVertType = null;
+		switch(oParsedBodyPr.vert)
+		{
+			case "eaVert":
+				nVertType = AscFormat.nVertTTeaVert;
+				break;
+			case "horz":
+				nVertType = AscFormat.nVertTThorz;
+				break;
+			case "mongolianVert":
+				nVertType = AscFormat.nVertTTmongolianVert;
+				break;
+			case "vert":
+				nVertType = AscFormat.nVertTTvert;
+				break;
+			case "vert270":
+				nVertType = AscFormat.nVertTTvert270;
+				break;
+			case "wordArtVert":
+				nVertType = AscFormat.nVertTTwordArtVert;
+				break;
+			case "wordArtVertRtl":
+				nVertType = AscFormat.nVertTTwordArtVertRtl;
+				break;
+		}
+
+		var nWrapType = null;
+		switch (oParsedBodyPr.wrap)
+		{
+			case "none":
+				nWrapType = AscFormat.nTWTNone;
+				break;
+			case "square":
+				nWrapType = AscFormat.nTWTSquare;
+				break;
+		}
+
+		oBodyPr.flatTx           = oParsedBodyPr.flatTx != undefined ? private_EMU2MM(oParsedBodyPr.flatTx) : oBodyPr.flatTx;
+		oBodyPr.normAutofit      = TextFitFromJSON(oParsedBodyPr.normAutofit);
+		oBodyPr.prstTxWarp       = GeometryFromJSON(oParsedBodyPr.prstTxWarp);
+		oBodyPr.anchor           = nAnchorType;
+		oBodyPr.anchorCtr        = oParsedBodyPr.anchorCtr;
+		oBodyPr.bIns             = private_EMU2MM(oParsedBodyPr.bIns);
+		oBodyPr.compatLnSpc      = oParsedBodyPr.compatLnSpc;
+		oBodyPr.forceAA          = oParsedBodyPr.forceAA;
+		oBodyPr.fromWordArt      = oParsedBodyPr.fromWordArt;
+		oBodyPr.horzOverflow     = nHorzOverflow;
+		oBodyPr.lIns             = private_EMU2MM(oParsedBodyPr.lIns);
+		oBodyPr.numCol           = oParsedBodyPr.numCol;
+		oBodyPr.rIns             = private_EMU2MM(oParsedBodyPr.rIns);
+		oBodyPr.rot              = oParsedBodyPr.rot;
+		oBodyPr.rtlCol           = oParsedBodyPr.rtlCol;
+		oBodyPr.spcCol           = oParsedBodyPr.spcCol !== false ? private_EMU2MM(oParsedBodyPr.spcCol) : oParsedBodyPr.spcCol;
+		oBodyPr.spcFirstLastPara = oParsedBodyPr.spcFirstLastPara;
+		oBodyPr.tIns             = private_EMU2MM(oParsedBodyPr.tIns);
+		oBodyPr.upright          = oParsedBodyPr.upright;
+		oBodyPr.vert             = nVertType;
+		oBodyPr.vertOverflow     = nVertOverflow;
+		oBodyPr.wrap             = nWrapType;
+
+		return oBodyPr;
+	};
+	function TextFitFromJSON(oParsedTextFit)
+	{
+		var oTextFit = new AscFormat.CTextFit();
+
+		oTextFit.type           = oParsedTextFit.type;
+		oTextFit.fontScale      = oParsedTextFit.fontScale;
+		oTextFit.lnSpcReduction = oParsedTextFit.lnSpcReduction;
+
+		return oTextFit;
+	};
+	function SpPrFromJSON(oParsedPr)
+	{
+		var oSpPr = new AscFormat.CSpPr();
+
+		oSpPr.Fill        = FillFromJSON(oParsedPr.fill);
+		oSpPr.effectProps = EffectPropsFromJSON(aEffectDag, aEffectList);
+		oSpPr.bwMode      = oParsedPr.bwMode;
+		oSpPr.geometry    = oParsedPr.custGeom ? GeometryFromJSON(oParsedPr.custGeom) : oParsedPr.custGeom;
+		oSpPr.ln          = oParsedPr.ln       ? LnFromJSON(oParsedPr.ln) : oParsedPr.ln;
+		oSpPr.xfrm        = oParsedPr.xfrm     ? XfrmFromJSON(oParsedPr.xfrm) : oParsedPr.xfrm;
+
+		return oSpPr;
+	};
+	function LnFromJSON(oParsedLn)
+	{
+		var oLn = new AscFormat.CLn();
+
+		oLn.Fill     = oParsedLn.fill     ? FillFromJSON(oParsedLn.fill)         : oLn.Fill;
+		oLn.prstDash = oParsedLn.prstDash ? oParsedLn.prstDash                   : oLn.prstDash;
+		oLn.Join     = oParsedLn.lineJoin ? LineJoinFromJSON(oParsedLn.lineJoin) : oLn.Join;
+		oLn.headEnd  = oParsedLn.headEnd  ? EndArrowFromJSON(oParsedLn.headEnd)  : oLn.headEnd;
+		oLn.tailEnd  = oParsedLn.tailEnd  ? EndArrowFromJSON(oParsedLn.tailEnd)  : oLn.tailEnd;
+
+		oLn.algn = oParsedLn.algn;
+		oLn.cap  = oParsedLn.cap;
+		oLn.cmpd = oParsedLn.cmpd;
+		oLn.w    = oParsedLn.w;
+
+		return oLn;
+	};
+	
+	function LineJoinFromJSON(oParsedLineJoin)
+	{
+		var oLineJoin = new AscFormat.LineJoin();
+
+		var nType = undefined;
+		switch (oParsedLineJoin.type)
+		{
+			case "round":
+				nType = AscFormat.LineJoinType.Round;
+				break;
+			case "bevel":
+				nType = AscFormat.LineJoinType.Bevel;
+				break;
+			case "miter":
+				nType = AscFormat.LineJoinType.Miter;
+				break;
+			case "empty":
+				nType = AscFormat.LineJoinType.Miter;
+				break;
+		}
+
+		oLineJoin.type  = nType;
+		oLineJoin.limit = oParsedLineJoin.lim;
+
+		return oLineJoin;
+	};
+	function XfrmFromJSON(oParsedXfrm)
+	{
+		var oXfrm = new AscFormat.CXfrm();
+
+		oXfrm.extX  = oParsedXfrm.ext.cx ? private_EMU2MM(oParsedXfrm.ext.cx) : oParsedXfrm.ext.cx;
+		oXfrm.extY  = oParsedXfrm.ext.cy ? private_EMU2MM(oParsedXfrm.ext.cy) : oParsedXfrm.ext.cy;
+		oXfrm.offX  = oParsedXfrm.off.x ? private_EMU2MM(oParsedXfrm.off.x) : oParsedXfrm.off.x;
+		oXfrm.offY  = oParsedXfrm.off.y ? private_EMU2MM(oParsedXfrm.off.y) : oParsedXfrm.off.y;
+		oXfrm.flipH = oParsedXfrm.flipH;
+		oXfrm.flipV = oParsedXfrm.flipV;
+		oXfrm.rot   = oParsedXfrm.rot;
+
+		return oXfrm;
+	};
+	function EffectPropsFromJSON(oParsedEffectDag, oParsedEffectList)
+	{
+		var oEffectProps = new AscFormat.CEffectProperties();
+
+		oEffectProps.EffectDag = oParsedEffectDag  ? EffectContainerFromJSON(oParsedEffectDag) : oEffectProps.EffectDag;
+		oEffectProps.EffectLst = oParsedEffectList ? EffectLstFromJSON(oParsedEffectList) : oEffectProps.EffectLst;
+
+		return oEffectProps;
+	};
+	function GeometryFromJSON(oParsedGeom)
+	{
+		var oGeom = new AscFormat.Geometry();
+
+		var arrAhPolar = oParsedGeom.ahLst.ahPolar;
+		var arrAhXY    = oParsedGeom.ahLst.ahXY;
+		
+
+	};
+	function UniNvPrFromJSON(oParsedPr)
+	{
+		var oUniNvPr = new AscFormat.UniNvPr();
+		
+		oUniNvPr.cNvPr     = CNvPrFromJSON(oParsedPr.cNvPr);
+		oUniNvPr.nvPr      = NvPrFromJSON(oParsedPr.nvPr);
+		oUniNvPr.nvUniSpPr = NvUniSpPrFromJSON(oParsedPr.nvUniSpPr);
+
+		return oUniNvPr;
 	};
 	function CNvPrFromJSON(oParsedPr)
 	{
@@ -6137,6 +6858,68 @@
 		oDocPr.id         = oParsedPr.id;
 
 		return oDocPr;
+	};
+	function NvPrFromJSON(oParsedPr)
+	{
+		var oNvPr = new AscFormat.NvPr();
+
+		oNvPr.isPhoto   = oParsedPr.isPhoto;
+		oNvPr.ph        = PlaceholderFromJSON(oParsedPr.ph);
+		oNvPr.unimedia  = UniMediaFromJSON(oParsedPr.unimedia);
+		oNvPr.userDrawn = oParsedPr.userDrawn;
+
+		return oNvPr;
+	};
+	function PlaceholderFromJSON(oParsedPh)
+	{
+		var oPlaceholder = new AscFormat.Ph();
+
+		// orient
+		var nOrient = typeof(oParsedPh.orient) === "string" ? (oParsedPh.orient === "vert" ? 1 : 0) : null;
+		
+		// size
+		var nPhSz   = null;
+		switch (oParsedPh.sz)
+		{
+			case "full":
+				nPhSz = 0;
+				break;
+			case "half":
+				nPhSz = 1;
+				break;
+			case "quarter":
+				nPhSz = 2;
+				break;
+		}
+		
+		oPlaceholder.hasCustomPrompt = oParsedPh.hasCustomPrompt;
+		oPlaceholder.idx             = oParsedPh.idx;
+		oPlaceholder.orient          = nOrient;
+		oPlaceholder.sz              = nPhSz;
+		oPlaceholder.type            = GetNumPhType(oParsedPh.type);
+		
+		return oPlaceholder;
+	};
+	function UniMediaFromJSON(oParsedUniMedia)
+	{
+		var oUniMedia = new AscFormat.UniMedia();
+
+		oUniMedia.type  = oParsedUniMedia.type;
+		oUniMedia.media = oParsedUniMedia.media;
+
+		return oUniMedia;
+	};
+	function NvUniSpPrFromJSON(oParsedPr)
+	{
+		var oNvUniSpPr = new AscFormat.CNvUniSpPr();
+
+		oNvUniSpPr.locks     = oParsedPr.locks;
+		oNvUniSpPr.stCnxIdx  = oParsedPr.stCnxIdx;
+		oNvUniSpPr.stCnxId   = oParsedPr.stCnxId;
+		oNvUniSpPr.endCnxIdx = oParsedPr.endCnxIdx;
+		oNvUniSpPr.endCnxId  = oParsedPr.endCnxId;
+
+		return oNvUniSpPr;
 	};
 	function HLinkgFromJSON(oParsedHLink)
 	{
@@ -14247,7 +15030,7 @@
 	 */
 	ApiTextPr.prototype.SetPosition = function(nPosition)
 	{
-		this.TextPr.Position = private_PtToMM(private_GetHps(nPosition));
+		this.TextPr.Position = private_Pt2MM(private_GetHps(nPosition));
 		this.private_OnChange();
 	};
 	/**
@@ -16383,8 +17166,6 @@
 	{
 		return JSON.stringify(SerDrawing(this.Drawing));
 	};
- 
-
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -19021,7 +19802,7 @@
 				oBorder.Value = border_Single;
 
 			oBorder.Size  = private_Pt_8ToMM(nSize);
-			oBorder.Space = private_PtToMM(nSpace);
+			oBorder.Space = private_Pt2MM(nSpace);
 			oBorder.Color.Set(r, g, b);
 		}
 
@@ -19092,9 +19873,17 @@
 		return nResult;
 	}
 
-	function private_PtToMM(pt)
+	function private_Pt2MM(pt)
 	{
 		return 25.4 / 72.0 * pt;
+	}
+	function private_Pt2EMU(pt)
+	{
+		return 12700.0 * pt;
+	}
+	function private_EMU2Pt(emu)
+	{
+		return emu / 12700.0
 	}
 
 	function private_Pt_8ToMM(pt)
