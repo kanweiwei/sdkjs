@@ -2639,7 +2639,7 @@
 
 		return oInlineSdt;
 	};
-	function SerParagraph(oPara, aComplexFieldsToSave, aAll)
+	function SerParagraph(oPara, aComplexFieldsToSave)
 	{
 		var oParaObject = {
 			pPr: SerParaPr(oPara.Pr),
@@ -2647,6 +2647,8 @@
 			type: "paragraph"
 		};
 		
+		oParaObject.pPr.sectPr = SerSectionPr(oPara.SectPr);
+
 		if (!aComplexFieldsToSave)
 			aComplexFieldsToSave = GetComplexFieldsToSave([oPara]);
 
@@ -2699,6 +2701,315 @@
 		}
 
 		return oParaObject;
+	};
+	function SerDocument(oDocument)
+	{
+		var oDocObject = {
+			content: [],
+			hdrFtr: [],
+			sectPr: SerSectionPr(oDocument.SectPr),
+			type: "document"
+		};
+
+		if (!aComplexFieldsToSave)
+			aComplexFieldsToSave = GetComplexFieldsToSave(oDocument.Content);
+
+		var TempElm = null;
+		for (var nElm = 0; nElm < oDocument.Content.length; nElm++)
+		{
+			TempElm = oDocument.Content[nElm];
+
+			if (TempElm instanceof AscCommonWord.Paragraph)
+				oDocObject["content"].push(SerParagraph(TempElm, aComplexFieldsToSave));
+			else if (TempElm instanceof AscCommonWord.CTable)
+				oDocObject["content"].push(SerTable(TempElm, aComplexFieldsToSave));
+			else if (TempElm instanceof AscCommonWord.CBlockLevelSdt)
+				oDocObject["content"].push(SerBlockLvlSdt(TempElm, aComplexFieldsToSave));
+		}
+
+		// header and footer
+		var oHdrFtr = oDocument.GetHdrFtr();
+		for (var nPage = 0; nPage < oHdrFtr.Pages.length; nPage++)
+			oDocObject.hdrFtr.push(SerHdrFtr(oHdrFtr.Pages[nPage]));
+
+		return oDocObject;
+	};
+	function SerHdrFtr(oHdrFtrPage)
+	{
+		if (!oHdrFtrPage)
+			return oHdrFtrPage;
+
+		return {
+			hdr: SerHdr(oHdrFtrPage.Header),
+			ftr: SerFtr(oHdrFtrPage.Footer)
+		}
+	};
+	function SerHdr(oHdr)
+	{
+		if (!oHdr)
+			return oHdr;
+
+		return {
+			content: SerDocContent(oHdr.Content),
+			type: "hdr"
+		}
+	};
+	function SerFtr(oFtr)
+	{
+		if (!oFtr)
+			return oFtr;
+
+		return {
+			content: SerDocContent(oFtr.Content),
+			type: "ftr"
+		}
+	};
+	function SerSectionPr(oSectionPr)
+	{
+		if (!oSectionPr)
+			return oSectionPr;
+
+		var sSectionType = undefined;
+		switch(oSectionPr.Type)
+		{
+			case Asc.c_oAscSectionBreakType.NextPage:
+				sSectionType = "nextPage";
+				break;
+			case Asc.c_oAscSectionBreakType.OddPage:
+				sSectionType = "oddPage";
+				break;
+			case Asc.c_oAscSectionBreakType.EvenPage:
+				sSectionType = "evenPage";
+				break;
+			case Asc.c_oAscSectionBreakType.Continuous:
+				sSectionType = "continuous";
+				break;
+			case Asc.c_oAscSectionBreakType.Column:
+				sSectionType = "nextColumn";
+				break;
+		}
+		var oFooterReference = {
+			first:   oSectionPr.FooterFirst   ? SerHdrFtr(oSectionPr.FooterFirst)   : oSectionPr.FooterFirst,
+			default: oSectionPr.FooterDefault ? SerHdrFtr(oSectionPr.FooterDefault) : oSectionPr.FooterDefault,
+			even:    oSectionPr.FooterEven    ? SerHdrFtr(oSectionPr.FooterEven)    : oSectionPr.FooterEven,
+		};
+		var oHeaderReference = {
+			first:   oSectionPr.HeaderFirst   ? SerHdrFtr(oSectionPr.HeaderFirst)   : oSectionPr.HeaderFirst,
+			default: oSectionPr.HeaderDefault ? SerHdrFtr(oSectionPr.HeaderDefault) : oSectionPr.HeaderDefault,
+			even:    oSectionPr.HeaderEven    ? SerHdrFtr(oSectionPr.HeaderEven)    : oSectionPr.HeaderEven,
+		}
+
+		var oSectionPrObj = {
+			cols:            SerSectionColumns(oSectionPr.Columns),
+			endnotePr:       SerEndNotePr(oSectionPr.EndnotePr),
+			footerReference: oFooterReference,
+			footnotePr:      SerFootnotePr(oSectionPr.FootnotePr),
+			headerReference: oHeaderReference,
+			lnNumType:       SerLnNumType(oSectionPr.LnNumType),
+			pgBorders:       SerPageBorders(oSectionPr.Borders),
+			pgMar:           SerPageMargins(oSectionPr.PageMargins),
+			//pgNumType:       oSectionPr.PageNumType.Start,
+			pgSz:            SerPageSize(oSectionPr.PageSize),
+			rtlGutter:       oSectionPr.GutterRTL,
+			titlePg:         oSectionPr.TitlePage,
+			type:            sSectionType
+		};
+
+		return oSectionPrObj;
+	};
+	function SerSectionColumns(oSectColumns)
+	{
+		if (!oSectColumns)
+			return oSectColumns;
+
+		var aCols = [];
+		for (var nCol = 0; nCol < oSectColumns.Cols.length; nCol++)
+			aCols.push(SerSectionCol(oSectColumns.Cols[nCol]));
+
+		return {
+			col:        aCols,
+			equalWidth: oSectColumns.EqualWidth,
+			num:        oSectColumns.Num,
+			sep:        oSectColumns.Sep,
+			space:      private_MM2Twips(oSectColumns.Space)
+		}
+	};
+	function SerSectionCol(oSectionCol)
+	{
+		if (!oSectionCol)
+			return oSectionCol;
+
+		return {
+			space: private_MM2Twips(oSectionCol.Space),
+			w:     private_MM2Twips(oSectionCol.W)
+		}
+	};
+	function SerEndNotePr(oEndNotePr)
+	{
+		if (!oEndNotePr)
+			return oEndNotePr;
+
+		var sNumRestart = undefined;
+		switch(oEndNotePr.NumRestart)
+		{
+			case section_footnote_RestartContinuous:
+				sNumRestart = "continuous";
+				break;
+			case section_footnote_RestartEachPage:
+				sNumRestart = "eachPage";
+				break;
+			case section_footnote_RestartEachSect:
+				sNumRestart = "eachSect";
+				break;
+		}
+
+		var sEndPos = undefined;
+		switch(oEndNotePr.Pos)
+		{
+			case Asc.c_oAscEndnotePos.DocEnd:
+				sEndPos = "docEnd";
+				break;
+			case Asc.c_oAscEndnotePos.SectEnd:
+				sEndPos = "sectEnd";
+				break;
+		}
+		return {
+			numFmt:     GetStringNumFormat(oEndNotePr.NumFormat),
+			numRestart: sNumRestart,
+			numStart:   oEndNotePr.NumStart,
+			pos:        sEndPos
+		}
+	};
+	function SerFootnotePr(oFootnotePr)
+	{
+		if (!oFootnotePr)
+			return oFootnotePr;
+
+		var sNumRestart = undefined;
+		switch(oFootnotePr.NumRestart)
+		{
+			case section_footnote_RestartContinuous:
+				sNumRestart = "continuous";
+				break;
+			case section_footnote_RestartEachPage:
+				sNumRestart = "eachPage";
+				break;
+			case section_footnote_RestartEachSect:
+				sNumRestart = "eachSect";
+				break;
+		}
+
+		var sEndPos = undefined;
+		switch(oFootnotePr.Pos)
+		{
+			case Asc.c_oAscFootnotePos.BeneathText:
+				sEndPos = "beneathText";
+				break;
+			case Asc.c_oAscFootnotePos.DocEnd:
+				sEndPos = "docEnd";
+				break;
+			case Asc.c_oAscFootnotePos.PageBottom:
+				sEndPos = "pgBottom";
+				break;
+			case Asc.c_oAscFootnotePos.SectEnd:
+				sEndPos = "sectEnd";
+				break;
+		}
+		return {
+			numFmt:     GetStringNumFormat(oFootnotePr.NumFormat),
+			numRestart: sNumRestart,
+			numStart:   oFootnotePr.NumStart,
+			pos:        sEndPos
+		}
+	};
+	function SerLnNumType(oLnNumType)
+	{
+		if (!oLnNumType)
+			return oLnNumType;
+
+		var sRestartType = undefined;
+		switch(oLnNumType.Restart)
+		{
+			case Asc.c_oAscLineNumberRestartType.Continuous:
+				sRestartType = "continuous";
+				break;
+			case Asc.c_oAscLineNumberRestartType.NewPage:
+				sRestartType = "newPage";
+				break;
+			case Asc.c_oAscLineNumberRestartType.NewSection:
+				sRestartType = "newSection";
+				break;
+		}
+		return {
+			countBy:  oLnNumType.CountBy,
+			distance: private_MM2Twips(oLnNumType.Distance),
+			start:    oLnNumType.Start,
+			restart:  sRestartType
+		}
+	};
+	function SerPageBorders(oPageBorders)
+	{
+		if (!oPageBorders)
+			return oPageBorders;
+
+		var sDisplayType = undefined;
+		switch(oPageBorders.Display)
+		{
+			case section_borders_DisplayAllPages:
+				sDisplayType = "allPages";
+				break;
+			case section_borders_DisplayFirstPage:
+				sDisplayType = "firstPage";
+				break;
+			case section_borders_DisplayNotFirstPage:
+				sDisplayType = "notFirstPage";
+				break;
+		}
+		return {
+			bottom:     SerBorder(oPageBorders.Bottom),
+			left:       SerBorder(oPageBorders.Left),
+			right:      SerBorder(oPageBorders.Right),
+			top:        SerBorder(oPageBorders.Top),
+			display:    sDisplayType,
+			offsetFrom: private_MM2Twips(oPageBorders.OffsetFrom),
+			zOrder:     oPageBorders.ZOrder === section_borders_ZOrderFront ? "front" : "back"
+		}
+	};
+	function SerPageMargins(oPageMargins)
+	{
+		if (!oPageMargins)
+			return oPageMargins;
+
+		return {
+			bottom: private_MM2Twips(oPageMargins.Bottom),
+			footer: private_MM2Twips(oPageMargins.Footer),
+			gutter: private_MM2Twips(oPageMargins.Gutter),
+			header: private_MM2Twips(oPageMargins.Header),
+			left: private_MM2Twips(oPageMargins.Left),
+			right: private_MM2Twips(oPageMargins.Right),
+			top: private_MM2Twips(oPageMargins.Top)
+		}
+	};
+	function SerPageSize(oPageSize)
+	{
+		if (!oPageSize)
+			return oPageSize;
+
+		var sOrientType = undefined;
+		switch(oPageSize.Orient)
+		{
+			case Asc.c_oAscPageOrientation.PagePortrait:
+				sOrientType = "portrait";
+				break;
+			case Asc.c_oAscPageOrientation.PageLandscape:
+				sOrientType = "landscape";
+				break;
+		}
+		return {
+			h:      private_MM2Twips(oPageSize.H),
+			orinet: sOrientType,
+			w:      private_MM2Twips(oPageSize.W)
+		}
 	};
 	function SerHyperlink(oHyperlink, aComplexFieldsToSave)
 	{
@@ -3160,8 +3471,43 @@
 		}
 
 		// format type
+		var sFormatType = GetStringNumFormat(oLvl.Format);
+
+		// lvl text
+		var oLvlText = {
+			val: oLvl.LvlText.length === 2 ? oLvl.LvlText[1].Value : oLvl.LvlText[0].Value
+		}
+		if (oLvl.LvlText.length)
+			oLvlText.numValue = oLvl.LvlText[0].Value;
+
+		return {
+			isLgl: oLvl.IsLgl,
+
+			legacy: oLvl.Legacy ? {
+				legacy:       oLvl.Legacy.Legacy,
+				legacyIndent: oLvl.Legacy.Indent,
+				legacySpace:  oLvl.Legacy.Space
+			} : oLvl.Legacy,
+
+			lvlJc:   sJc,
+			lvlText: oLvlText,
+			numFmt:  {
+				val: sFormatType
+			},
+			pPr:     SerParaPr(oLvl.ParaPr),
+			pStyle:  SerStyle(oStyle),
+			rPr:     SerTextPr(oLvl.TextPr),
+			restart: oLvl.Restart,
+			start:   oLvl.Start,
+			suff:    sSuffType,
+			ilvl:    nLvl
+		}
+	};
+	function GetStringNumFormat(nNumFormat)
+	{
+		// format type
 		var sFormatType = undefined;
-		switch (oLvl.Format)
+		switch (nNumFormat)
 		{
 			case Asc.c_oAscNumberingFormat.Bullet:
 				sFormatType = "bullet";
@@ -3216,35 +3562,68 @@
 				break;
 		}
 
-		// lvl text
-		var oLvlText = {
-			val: oLvl.LvlText.length === 2 ? oLvl.LvlText[1].Value : oLvl.LvlText[0].Value
+		return sFormatType;
+	};
+	function GetNumFormat(sNumFormat)
+	{
+		// format type
+		var nFormatType = undefined;
+		switch (sNumFormat)
+		{
+			case "bullet":
+				nFormatType = Asc.c_oAscNumberingFormat.Bullet;
+				break;
+			case "chineseCounting":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCounting;
+				break;
+			case "chineseCountingThousand":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCountingThousand;
+				break;
+			case "chineseLegalSimplified":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseLegalSimplified;
+				break;
+			case "decimal":
+				nFormatType = Asc.c_oAscNumberingFormat.Decimal;
+				break;
+			case "decimalEnclosedCircle":
+				nFormatType = Asc.c_oAscNumberingFormat.DecimalEnclosedCircle;
+				break;
+			case "decimalZero":
+				nFormatType = Asc.c_oAscNumberingFormat.DecimalZero;
+				break;
+			case "lowerLetter":
+				nFormatType = Asc.c_oAscNumberingFormat.LowerLetter;
+				break;
+			case "lowerRoman":
+				nFormatType = Asc.c_oAscNumberingFormat.LowerRoman;
+				break;
+			case "none":
+				nFormatType = Asc.c_oAscNumberingFormat.None;
+				break;
+			case "russianLower":
+				nFormatType = Asc.c_oAscNumberingFormat.RussianLower;
+				break;
+			case "russianUpper":
+				nFormatType = Asc.c_oAscNumberingFormat.RussianUpper;
+				break;
+			case "upperLetter":
+				nFormatType = Asc.c_oAscNumberingFormat.UpperLetter;
+				break;
+			case "upperRoman":
+				nFormatType = Asc.c_oAscNumberingFormat.UpperRoman;
+				break;
+			case "chineseCounting":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCounting;
+				break;
+			case "chineseCountingThousand":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseCountingThousand;
+				break;
+			case "chineseLegalSimplified":
+				nFormatType = Asc.c_oAscNumberingFormat.ChineseLegalSimplified;
+				break;
 		}
-		if (oLvl.LvlText.length)
-			oLvlText.numValue = oLvl.LvlText[0].Value;
 
-		return {
-			isLgl: oLvl.IsLgl,
-
-			legacy: oLvl.Legacy ? {
-				legacy:       oLvl.Legacy.Legacy,
-				legacyIndent: oLvl.Legacy.Indent,
-				legacySpace:  oLvl.Legacy.Space
-			} : oLvl.Legacy,
-
-			lvlJc:   sJc,
-			lvlText: oLvlText,
-			numFmt:  {
-				val: sFormatType
-			},
-			pPr:     SerParaPr(oLvl.ParaPr),
-			pStyle:  SerStyle(oStyle),
-			rPr:     SerTextPr(oLvl.TextPr),
-			restart: oLvl.Restart,
-			start:   oLvl.Start,
-			suff:    sSuffType,
-			ilvl:    nLvl
-		}
+		return nFormatType;
 	};
 	function SerTabs(oTabs)
 	{
@@ -5112,6 +5491,9 @@
 		var oPara     = new AscCommonWord.Paragraph(private_GetDrawingDocument(), null);
 		oPara.Pr      = oParaPr;
 
+		// section prop.
+		oPara.SectPr = oPr.sectPr ? SectPrFromJSON(oPr.sectPr) : oPara.SectPr;
+
 		oPara.Parent = oParent || private_GetLogicDocument();
 
 		for (var nElm = 0; nElm < aContent.length; nElm++)
@@ -5207,6 +5589,255 @@
 		oParaPr.WidowControl    = oPr.widowControl;
 
 		return oParaPr;
+	};
+	function SectPrFromJSON(oParsedSectPr)
+	{
+		var oSectPr = new AscCommonWord.CSectionPr(private_GetLogicDocument());
+
+		var nSectionType = undefined;
+		switch(oParsedSectPr.type)
+		{
+			case "nextPage":
+				nSectionType = Asc.c_oAscSectionBreakType.NextPage;
+				break;
+			case "oddPage":
+				nSectionType = Asc.c_oAscSectionBreakType.OddPage;
+				break;
+			case "evenPage":
+				nSectionType = Asc.c_oAscSectionBreakType.EvenPage;
+				break;
+			case "continuous":
+				nSectionType = Asc.c_oAscSectionBreakType.Continuous;
+				break;
+			case "nextColumn":
+				nSectionType = Asc.c_oAscSectionBreakType.Column;
+				break;
+		}
+
+		oSectPr.FooterFirst   = oParsedSectPr.footerReference.first   ? FtrFromJSON(oParsedSectPr.footerReference.first)   : oSectPr.FooterFirst;
+		oSectPr.FooterDefault = oParsedSectPr.footerReference.default ? FtrFromJSON(oParsedSectPr.footerReference.default) : oSectPr.FooterDefault;
+		oSectPr.FooterEven    = oParsedSectPr.footerReference.even    ? FtrFromJSON(oParsedSectPr.footerReference.even)    : oSectPr.FooterEven;
+
+		oSectPr.HeaderFirst   = oParsedSectPr.headerReference.first   ? HdrFromJSON(oParsedSectPr.headerReference.first)   : oSectPr.HeaderFirst;
+		oSectPr.HeaderDefault = oParsedSectPr.headerReference.default ? HdrFromJSON(oParsedSectPr.headerReference.default) : oSectPr.HeaderDefault;
+		oSectPr.HeaderEven    = oParsedSectPr.headerReference.even    ? HdrFromJSON(oParsedSectPr.headerReference.even)    : oSectPr.HeaderEven;
+
+		oSectPr.Columns       = SectionColumnsFromJSON(oParsedSectPr.cols, oSectPr);
+		oSectPr.EndnotePr     = EndnotePrFromJSON(oParsedSectPr.endnotePr);
+		oSectPr.FootnotePr    = FootnotePrFromJSON(oParsedSectPr.footnotePr);
+		oSectPr.LnNumType     = oParsedSectPr.lnNumType ? LnNumTypeFromJSON(oParsedSectPr.lnNumType) : oSectPr.LnNumType;
+		oSectPr.Borders       = PageBordersFromJSON(oParsedSectPr.pgBorders);
+		oSectPr.PageMargins   = PageMarginsFromJSON(oParsedSectPr.pgMar);
+		oSectPr.PageSize      = PageSizeFromJSON(oParsedSectPr.pgSz);
+		oSectPr.GutterRTL     = oParsedSectPr.rtlGutter;
+		oSectPr.TitlePage     = oParsedSectPr.titlePg;
+		oSectPr.Type          = nSectionType;
+
+		return oSectPr;
+	};
+	function PageMarginsFromJSON(oParsedMargins)
+	{
+		var oPageMargins = new CSectionPageMargins();
+
+		oPageMargins.Bottom = private_Twips2MM(oParsedMargins.bottom);
+		oPageMargins.Footer = private_Twips2MM(oParsedMargins.footer);
+		oPageMargins.Gutter = private_Twips2MM(oParsedMargins.gutter);
+		oPageMargins.Header = private_Twips2MM(oParsedMargins.header);
+		oPageMargins.Left   = private_Twips2MM(oParsedMargins.left);
+		oPageMargins.Right  = private_Twips2MM(oParsedMargins.right);
+		oPageMargins.Top    = private_Twips2MM(oParsedMargins.top);
+
+		return oPageMargins;
+	};
+	function PageSizeFromJSON(oParsedPgSize)
+	{
+		var oPageSize = new CSectionPageSize();
+
+		var nOrientType = undefined;
+		switch(oParsedPgSize.orinet)
+		{
+			case "portrait":
+				nOrientType = Asc.c_oAscPageOrientation.PagePortrait;
+				break;
+			case "landscape":
+				nOrientType = Asc.c_oAscPageOrientation.PageLandscape;
+				break;
+		}
+
+		oPageSize.H = private_Twips2MM(oParsedPgSize.h);
+		oPageSize.W = private_Twips2MM(oParsedPgSize.w);
+
+		return oPageSize;
+	};
+	function PageBordersFromJSON(oParsedPgBorders)
+	{
+		var oPageBorders = new CSectionBorders();
+
+		var nDisplayType = undefined;
+		switch(oParsedPgBorders.display)
+		{
+			case "allPages":
+				nDisplayType = section_borders_DisplayAllPages;
+				break;
+			case "firstPage":
+				nDisplayType = section_borders_DisplayFirstPage;
+				break;
+			case "notFirstPage":
+				nDisplayType = section_borders_DisplayNotFirstPage;
+				break;
+		}
+
+		oPageBorders.Bottom = DocBorderFromJSON(oParsedPgBorders.bottom);
+		oPageBorders.Left   = DocBorderFromJSON(oParsedPgBorders.left);
+		oPageBorders.Right  = DocBorderFromJSON(oParsedPgBorders.right);
+		oPageBorders.Top    = DocBorderFromJSON(oParsedPgBorders.top);
+
+		oPageBorders.Display    = nDisplayType;
+		oPageBorders.OffsetFrom = private_Twips2MM(oParsedPgBorders.offsetFrom);
+		oPageBorders.ZOrder     = oParsedPgBorders.zOrder === "front" ? section_borders_ZOrderFront : section_borders_ZOrderBack;
+
+		return oPageBorders;
+	};
+	function LnNumTypeFromJSON(oParsedLnNumType)
+	{
+		var nRestartType = undefined;
+		switch(oParsedLnNumType.restart)
+		{
+			case "continuous":
+				nRestartType = Asc.c_oAscLineNumberRestartType.Continuous;
+				break;
+			case "newPage":
+				nRestartType = Asc.c_oAscLineNumberRestartType.NewPage;
+				break;
+			case "newSection":
+				nRestartType = Asc.c_oAscLineNumberRestartType.NewSection;
+				break;
+		}
+
+		return CSectionLnNumType(oParsedLnNumType.countBy, private_Twips2MM(oParsedLnNumType.distance), oParsedLnNumType.start, nRestartType);
+	};
+	function EndnotePrFromJSON(oParsedPr)
+	{
+		var oEndnotePr = new CFootnotePr();
+
+		var nNumRestart = undefined;
+		switch(oParsedPr.numRestart)
+		{
+			case "continuous":
+				nNumRestart = section_footnote_RestartContinuous;
+				break;
+			case "eachPage":
+				nNumRestart = section_footnote_RestartEachPage;
+				break;
+			case "eachSect":
+				nNumRestart = section_footnote_RestartEachSect;
+				break;
+		}
+
+		var nEndPos = undefined;
+		switch(oParsedPr.pos)
+		{
+			case "docEnd":
+				nEndPos = Asc.c_oAscEndnotePos.DocEnd;
+				break;
+			case "sectEnd":
+				nEndPos = Asc.c_oAscEndnotePos.SectEnd;
+				break;
+		}
+
+		oEndnotePr.NumFormat  = GetNumFormat(oParsedPr.numFmt);
+		oEndnotePr.NumRestart = nNumRestart;
+		oEndnotePr.NumStart   = oParsedPr.numStart;
+		oEndnotePr.Pos        = nEndPos;
+
+		return oEndnotePr;
+	};
+	function FootnotePrFromJSON(oParsedPr)
+	{
+		var oFootnotePr = new CFootnotePr();
+
+		var nNumRestart = undefined;
+		switch(oParsedPr.numRestart)
+		{
+			case "continuous":
+				nNumRestart = section_footnote_RestartContinuous;
+				break;
+			case "eachPage":
+				nNumRestart = section_footnote_RestartEachPage;
+				break;
+			case "eachSect":
+				nNumRestart = section_footnote_RestartEachSect;
+				break;
+		}
+
+		var nEndPos = undefined;
+		switch(oParsedPr.pos)
+		{
+			case "beneathText":
+				nEndPos = Asc.c_oAscFootnotePos.BeneathText;
+				break;
+			case "docEnd":
+				nEndPos = Asc.c_oAscFootnotePos.DocEnd;
+				break;
+			case "pgBottom":
+				nEndPos = Asc.c_oAscFootnotePos.PageBottom;
+				break;
+			case "sectEnd":
+				nEndPos = Asc.c_oAscFootnotePos.SectEnd;
+				break;
+		}
+
+		oFootnotePr.NumFormat  = GetNumFormat(oParsedPr.numFmt);
+		oFootnotePr.NumRestart = nNumRestart;
+		oFootnotePr.NumStart   = oParsedPr.numStart;
+		oFootnotePr.Pos        = nEndPos;
+
+		return oFootnotePr;
+	};
+	function SectionColumnsFromJSON(oParsedSectCols, oParentSectPr)
+	{
+		var oSectionCols = new CSectionColumns(oParentSectPr);
+
+		for (var nCol = 0; nCol < oParsedSectCols.col.length; nCol++)
+			oSectionCols.Cols.push(SectionColFromJSON(oParsedSectCols.col[nCol]));
+
+		oSectionCols.EqualWidth = oParsedSectCols.equalWidth;
+		oSectionCols.Num        = oParsedSectCols.num;
+		oSectionCols.Sep        = oParsedSectCols.sep;
+		oSectionCols.Space      = private_Twips2MM(oParsedSectCols.space);
+
+		return oSectionCols;
+	};
+	function SectionColFromJSON(oParsedSectCol)
+	{
+		var oSectionColumn = new CSectionColumn();
+
+		oSectionColumn.W     = private_MM2Twips(oParsedSectCol.w);
+		oSectionColumn.Space = private_MM2Twips(oParsedSectCol.space);
+
+		return oSectionColumn;
+	};
+	function HdrFromJSON(oParsedHdr)
+	{
+		var oDocument         = private_GetLogicDocument();
+		var oDrawingDocuemnt  = private_GetDrawingDocument();
+		var oHdrFtrController = oDocument.GetHdrFtr();
+
+		var oHeader = new AscCommonWord.CHeaderFooter(oHdrFtrController, oDocument, oDrawingDocuemnt, AscCommon.hdrftr_Header);
+		oHeader.Content = DocContentFromJSON(oParsedHdr.content);
+
+		return oHeader;
+	};
+	function FtrFromJSON(oParsedHdr)
+	{
+		var oDocument         = private_GetLogicDocument();
+		var oDrawingDocuemnt  = private_GetDrawingDocument();
+		var oHdrFtrController = oDocument.GetHdrFtr();
+
+		var oFooter = new AscCommonWord.CHeaderFooter(oHdrFtrController, oDocument, oDrawingDocuemnt, AscCommon.hdrftr_Footer);
+		oFooter.Content = DocContentFromJSON(oParsedHdr.content);
+
+		return oFooter;
 	};
 	function FramePrFromJSON(oParsedFramePr)
 	{
@@ -10964,6 +11595,17 @@
 		}
 	};
 
+	/**
+	 * Convert to JSON object.
+	 * @memberof ApiDocument
+	 * @typeofeditors ["CDE"]
+	 * @returns {JSON}
+	 */
+	ApiDocument.prototype.ToJSON = function()
+	{
+		return JSON.stringify(SerDocument(this.Document));
+	};
+
 	//------------------------------------------------------------------------------------------------------------------
 	//
 	// ApiParagraph
@@ -13200,6 +13842,16 @@
 		}
 
 		return null;
+	};
+	/**
+	 * Convert to JSON object. 
+	 * @memberof ApiSection
+	 * @typeofeditors ["CDE"]
+	 * @returns {JSON}
+	 */
+	ApiSection.prototype.ToJSON = function()
+	{
+		return JSON.stringify(SerSectionPr(this.Section));
 	};
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -19127,6 +19779,12 @@
 				return new ApiTable(TableFromJSON(oParsedObj));
 			case "drawing":
 				return new ApiDrawing(DrawingFromJSON(oParsedObj));
+			case "nextPage":
+			case "oddPage":
+			case "evenPage":
+			case "continuous":
+			case "nextColumn":
+				return new ApiSection(SectPrFromJSON(oParsedObj));
 			
 		}
 	};
