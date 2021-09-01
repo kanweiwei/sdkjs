@@ -293,23 +293,38 @@
 			use: oSimplePos.Use
 		}
 	};
-	function SerPosV(oPosV)
+	function SerPositionV(oPosV)
 	{
 		if (!oPosV)
 			return oPosV;
 		
 		// anchorV
-		var sVerAnchor = undefined;
+		var sRelFromV = undefined;
 		switch (oPosV.RelativeFrom)
 		{
-			case Asc.c_oAscVAnchor.Margin:
-				sVerAnchor = "margin";
+			case Asc.c_oAscRelativeFromH.BottomMargin:
+				sRelFromV = "bottomMargin";
 				break;
-			case Asc.c_oAscVAnchor.Text:
-				sVerAnchor = "text";
+			case Asc.c_oAscRelativeFromH.InsideMargin:
+				sRelFromV = "insideMargin";
 				break;
-			case Asc.c_oAscVAnchor.Page:
-				sVerAnchor = "page";
+			case Asc.c_oAscRelativeFromH.Line:
+				sRelFromV = "line";
+				break;
+			case Asc.c_oAscRelativeFromH.Margin:
+				sRelFromV = "margin";
+				break;
+			case Asc.c_oAscRelativeFromH.OutsideMargin:
+				sRelFromV = "outsideMargin";
+				break;
+			case Asc.c_oAscRelativeFromH.Page:
+				sRelFromV = "page";
+				break;
+			case Asc.c_oAscRelativeFromH.Paragraph:
+				sRelFromV = "paragraph";
+				break;
+			case Asc.c_oAscRelativeFromH.TopMargin:
+				sRelFromV = "topMargin";
 				break;
 		}
 
@@ -341,32 +356,47 @@
 		}
 
 		// offset
-		var posOffset = oPosV.Align ? (oPosV.Percent ? oPosV.Value : private_MM2EMU(oPosV.Value)) : undefined;
+		var posOffset = oPosV.Align ? undefined : (oPosV.Percent ? oPosV.Value : private_MM2EMU(oPosV.Value));
 
 		return {
 			align:        sVerAlign,
-			relativeFrom: sVerAnchor,
+			relativeFrom: sRelFromV,
 			posOffset:    posOffset,
 			percent:      oPosV.Percent
 		}
 	};
-	function SerPosH(oPosH)
+	function SerPositionH(oPosH)
 	{
 		if (!oPosH)
 			return oPosH;
 		
 		// anchorH
-		var sHorAnchor = undefined;
+		var sRelFromH = undefined;
 		switch (oPosH.RelativeFrom)
 		{
-			case Asc.c_oAscHAnchor.Margin:
-				sHorAnchor = "margin";
+			case Asc.c_oAscRelativeFromH.Character:
+				sRelFromH = "character";
 				break;
-			case Asc.c_oAscHAnchor.Text:
-				sHorAnchor = "text";
+			case Asc.c_oAscRelativeFromH.Column:
+				sRelFromH = "column";
 				break;
-			case Asc.c_oAscHAnchor.Page:
-				sHorAnchor = "page";
+			case Asc.c_oAscRelativeFromH.InsideMargin:
+				sRelFromH = "insideMargin";
+				break;
+			case Asc.c_oAscRelativeFromH.LeftMargin:
+				sRelFromH = "leftMargin";
+				break;
+			case Asc.c_oAscRelativeFromH.Margin:
+				sRelFromH = "margin";
+				break;
+			case Asc.c_oAscRelativeFromH.OutsideMargin:
+				sRelFromH = "outsideMargin";
+				break;
+			case Asc.c_oAscRelativeFromH.Page:
+				sRelFromH = "page";
+				break;
+			case Asc.c_oAscRelativeFromH.RightMargin:
+				sRelFromH = "rightMargin";
 				break;
 		}
 
@@ -395,12 +425,12 @@
 		}
 
 		// offset
-		var posOffSet =  oPosH.Align ? (oPosH.Percent ? oPosH.Value : private_MM2EMU(oPosH.Value)) : undefined;
+		var posOffSet =  oPosH.Align ? undefined : (oPosH.Percent ? oPosH.Value : private_MM2EMU(oPosH.Value));
 
 		return {
 			align:        sHorAlign,
-			relativeFrom: sHorAnchor,
-			posOffser:    posOffSet,
+			relativeFrom: sRelFromH,
+			posOffset:    posOffSet,
 			percent:      oPosH.Percent
 		}
 	};
@@ -410,8 +440,8 @@
 			return oExtent;
 
 		return {
-			cy: oExtent.H,
-			cx: oExtent.W
+			cy: private_MM2EMU(oExtent.H),
+			cx: private_MM2EMU(oExtent.W)
 		}
 	};
 	function SerEffectExtent(oEffExt)
@@ -500,7 +530,7 @@
 			isPhoto:   oNvPr.isPhoto,
 			ph:        SerPlaceholder(oNvPr.ph),
 			unimedia:  SerUniMedia(oNvPr.unimedia),
-			userDrawn: userDrawn
+			userDrawn: oNvPr.userDrawn
 		}
 	};
 	function SerPlaceholder(oPh)
@@ -856,12 +886,8 @@
 		if (!oGeometry)
 			return oGeometry;
 		
+		// AhPolar
 		var arrAhPolarResult = [];
-		var arrAhXYResult    = [];
-		var arrAvResult      = [];
-		var arrCxnResult     = [];
-		var arrGdResult      = [];
-		var arrPathResult    = [];
 		for (var nItem = 0; nItem < oGeometry.ahPolarLstInfo.length; nItem++)
 		{
 			arrAhPolarResult.push({
@@ -877,6 +903,9 @@
 				minR: oGeometry.ahPolarLstInfo[nItem].minR
 			});
 		}
+
+		// AhXY
+		var arrAhXYResult    = [];
 		for (var nItem = 0; nItem < oGeometry.ahXYLstInfo.length; nItem++)
 		{
 			arrAhXYResult.push({
@@ -892,13 +921,22 @@
 				minY: oGeometry.ahXYLstInfo[nItem].minY
 			});
 		}
-		for (var nItem = 0; nItem < oGeometry.avLst.length; nItem++)
+
+		// Av
+		var oAvResult      = {};
+		for (var key in oGeometry.avLst)
+			oAvResult[key] = oGeometry.avLst[key]
+
+		// adj
+		var oAdjLst = {};
+		for (var key in oAvResult)
 		{
-			arrAvResult.push({
-				fmla: oGeometry.avLst[nItem].formula,
-				name: oGeometry.avLst[nItem].Name
-			});
+			if (oAvResult[key])
+				oAdjLst[key] = oGeometry.gdLst[key];
 		}
+
+		// Cnx
+		var arrCxnResult     = [];
 		for (var nItem = 0; nItem < oGeometry.cnxLstInfo.length; nItem++)
 		{
 			arrCxnResult.push({
@@ -909,75 +947,212 @@
 				ang: oGeometry.cnxLstInfo[nItem].ang
 			});
 		}
-		for (var nItem = 0; nItem < oGeometry.gdLst.length; nItem++)
+
+		// Gd
+		var arrGdResult      = [];
+		for (var nItem = 0; nItem < oGeometry.gdLstInfo.length; nItem++)
 		{
 			arrGdResult.push({
-				fmla: oGeometry.gdLst[nItem].formula,
-				name: oGeometry.gdLst[nItem].Name
+				fmla: GetFormulaStrType(oGeometry.gdLstInfo[nItem].formula),
+				x:    oGeometry.gdLstInfo[nItem].x,
+				y:    oGeometry.gdLstInfo[nItem].y,
+				z:    oGeometry.gdLstInfo[nItem].z,
+				name: oGeometry.gdLstInfo[nItem].name
 			});
 		}
-		for (var nItem = 0; nItem < oGeometry.pathLst.length; nItem++)
-		{
-			var arrCommands = [];
-			for (var nCommand = 0; nCommand < oGeometry.pathLst[nItem].ArrPathCommandInfo.length; nCommand++)
-			{
-				var arrObjKeys = Object.keys(oGeometry.pathLst[nItem].ArrPathCommandInfo[nCommand]);
-				var oCommand   = {};
-				switch (oGeometry.pathLst[nItem].ArrPathCommandInfo[nCommand].id)
-				{
-					case 0:
-						oCommand["id"] =  "moveTo";
-						break;
-					case 1:
-						oCommand["id"] =  "lnTo";
-						break;
-					case 2:
-						oCommand["id"] =  "arcTo";
-						break;
-					case 3:
-						oCommand["id"] =  "cubicBezTo";
-						break;
-					case 4:
-						oCommand["id"] =  "quadBezTo";
-						break;
-					case 5:
-						oCommand["id"] =  "close";
-						break;
-				}
-				if (oCommand["id"] !== "arcTo" && oCommand["id"] !== "close")
-					oCommand["pt"] = {};
-				for (var nKey = 0; nKey < arrObjKeys.length; nKey++)
-				{
-					if (arrObjKeys[nKey] === "id")
-						continue;
-					if (!oCommand["pt"])
-						oCommand[arrObjKeys[nKey].toLowerCase()] = oGeometry.pathLst[nItem].ArrPathCommandInfo[nCommand][arrObjKeys[nKey]];
-					else 
-						oCommand["pt"][arrObjKeys[nKey].toLowerCase()] = oGeometry.pathLst[nItem].ArrPathCommandInfo[nCommand][arrObjKeys[nKey]];
-				}
 
-				arrCommands.push(oCommand);
-			}
-			arrPathResult.push({
-				commands: arrCommands,
-				extrusionOk: oGeometry.pathLst[nItem].extrusionOk,
-				fill: oGeometry.pathLst[nItem].fill,
-				h: oGeometry.pathLst[nItem].pathH,
-				stroke: oGeometry.pathLst[nItem].stroke,
-				w: oGeometry.pathLst[nItem].pathW
-			});
-		}
+		// Commands
+		var arrPathResult    = [];
+		for (var nItem = 0; nItem < oGeometry.pathLst.length; nItem++)
+			arrPathResult.push(SerGeomPath(oGeometry.pathLst[nItem]));
+
 		return {
 			ahLst: {
 				ahPolar: arrAhPolarResult,
 				ahXY:    arrAhXYResult
 			},
-			avLst:   arrAvResult,
+			avLst:   oAvResult,
+			adjLst:  oAdjLst,
 			cnxLst:  arrCxnResult,
 			gdLst:   arrGdResult,
 			pathLst: arrPathResult,
 			rect:    oGeometry.rectS
 		}
+	};
+	function SerGeomPath(oPath)
+	{
+		if (!oPath)
+			return oPath;
+
+		var arrCommands = [];
+		for (var nCommand = 0; nCommand < oPath.ArrPathCommandInfo.length; nCommand++)
+		{
+			var arrObjKeys = Object.keys(oPath.ArrPathCommandInfo[nCommand]);
+			var oCommand   = {};
+			switch (oPath.ArrPathCommandInfo[nCommand].id)
+			{
+				case 0:
+					oCommand["id"] =  "moveTo";
+					break;
+				case 1:
+					oCommand["id"] =  "lnTo";
+					break;
+				case 2:
+					oCommand["id"] =  "arcTo";
+					break;
+				case 3:
+					oCommand["id"] =  "cubicBezTo";
+					break;
+				case 4:
+					oCommand["id"] =  "quadBezTo";
+					break;
+				case 5:
+					oCommand["id"] =  "close";
+					break;
+			}
+			if (oCommand["id"] !== "arcTo" && oCommand["id"] !== "close")
+				oCommand["pt"] = {};
+			for (var nKey = 0; nKey < arrObjKeys.length; nKey++)
+			{
+				if (arrObjKeys[nKey] === "id")
+					continue;
+				if (!oCommand["pt"])
+					oCommand[arrObjKeys[nKey]] = oPath.ArrPathCommandInfo[nCommand][arrObjKeys[nKey]];
+				else 
+					oCommand["pt"][arrObjKeys[nKey].toLowerCase()] = oPath.ArrPathCommandInfo[nCommand][arrObjKeys[nKey]];
+			}
+
+			arrCommands.push(oCommand);
+		}
+
+		return {
+			commands:    arrCommands,
+			extrusionOk: oPath.extrusionOk,
+			fill:        oPath.fill,
+			h:           oPath.pathH,
+			stroke:      oPath.stroke,
+			w:           oPath.pathW
+		}
+	};
+	function GetFormulaStrType(nFormulaType)
+	{
+		var sFormulaType = undefined;
+		switch(nFormulaType)
+		{
+			case AscFormat.FORMULA_TYPE_MULT_DIV:
+				sFormulaType = "*/";
+				break;
+			case AscFormat.FORMULA_TYPE_PLUS_MINUS:
+				sFormulaType = "+-";
+				break;
+			case AscFormat.FORMULA_TYPE_PLUS_DIV:
+				sFormulaType = "+/";
+				break;
+			case AscFormat.FORMULA_TYPE_IF_ELSE:
+				sFormulaType = "?:";
+				break;
+			case AscFormat.FORMULA_TYPE_ABS:
+				sFormulaType = "abs";
+				break;
+			case AscFormat.FORMULA_TYPE_AT2:
+				sFormulaType = "at2";
+				break;
+			case AscFormat.FORMULA_TYPE_CAT2:
+				sFormulaType = "cat2";
+				break;
+			case AscFormat.FORMULA_TYPE_COS:
+				sFormulaType = "cos";
+				break;
+			case AscFormat.FORMULA_TYPE_MAX:
+				sFormulaType = "max";
+				break;
+			case AscFormat.FORMULA_TYPE_MOD:
+				sFormulaType = "mod";
+				break;
+			case AscFormat.FORMULA_TYPE_PIN:
+				sFormulaType = "pin";
+				break;
+			case AscFormat.FORMULA_TYPE_SAT2:
+				sFormulaType = "sat2";
+				break;
+			case AscFormat.FORMULA_TYPE_SIN:
+				sFormulaType = "sin";
+				break;
+			case AscFormat.FORMULA_TYPE_SQRT:
+				sFormulaType = "sqrt";
+				break;
+			case AscFormat.FORMULA_TYPE_TAN:
+				sFormulaType = "tan";
+				break;
+			case AscFormat.FORMULA_TYPE_VALUE:
+				sFormulaType = "val";
+				break;
+			case AscFormat.FORMULA_TYPE_MIN:
+				sFormulaType = "min";
+				break;
+		}
+
+		return sFormulaType;
+	};
+	function GetFormulaNumType(sFormulaType)
+	{
+		var nFormulaType = undefined;
+		switch(sFormulaType)
+		{
+			case "*/":
+				nFormulaType = AscFormat.FORMULA_TYPE_MULT_DIV;
+				break;
+			case "+-":
+				nFormulaType = AscFormat.FORMULA_TYPE_PLUS_MINUS;
+				break;
+			case "+/":
+				nFormulaType = AscFormat.FORMULA_TYPE_PLUS_DIV;
+				break;
+			case "?:":
+				nFormulaType = AscFormat.FORMULA_TYPE_IF_ELSE;
+				break;
+			case "abs":
+				nFormulaType = AscFormat.FORMULA_TYPE_ABS;
+				break;
+			case "at2":
+				nFormulaType = AscFormat.FORMULA_TYPE_AT2;
+				break;
+			case "cat2":
+				nFormulaType = AscFormat.FORMULA_TYPE_CAT2;
+				break;
+			case "cos":
+				nFormulaType = AscFormat.FORMULA_TYPE_COS;
+				break;
+			case "max":
+				nFormulaType = AscFormat.FORMULA_TYPE_MAX;
+				break;
+			case "mod":
+				nFormulaType = AscFormat.FORMULA_TYPE_MOD;
+				break;
+			case "pin":
+				nFormulaType = AscFormat.FORMULA_TYPE_PIN;
+				break;
+			case "sat2":
+				nFormulaType = AscFormat.FORMULA_TYPE_SAT2;
+				break;
+			case "sin":
+				nFormulaType = AscFormat.FORMULA_TYPE_SIN;
+				break;
+			case "sqrt":
+				nFormulaType = AscFormat.FORMULA_TYPE_SQRT;
+				break;
+			case "tan":
+				nFormulaType = AscFormat.FORMULA_TYPE_TAN;
+				break;
+			case "val":
+				nFormulaType = AscFormat.FORMULA_TYPE_VALUE;
+				break;
+			case "min":
+				nFormulaType = AscFormat.FORMULA_TYPE_MIN;
+				break;
+		}
+
+		return nFormulaType;
 	};
 	function SerSpPr(oSpPr)
 	{
@@ -1035,7 +1210,7 @@
 
 			prstDash: oLn.prstDash,
 
-			tailEnd: SerEndArrow(oLn.tailEnd)
+			tailEnd:  SerEndArrow(oLn.tailEnd)
 		}
 	};
 	function SerLineJoin(oLine)
@@ -1108,7 +1283,7 @@
 		}
 
 		var sLineEndWidth = null;
-		switch(oArrow.len)
+		switch(oArrow.w)
 		{
 			case AscFormat.LineEndSize.Large:
 				sLineEndWidth = "lg";
@@ -3266,13 +3441,13 @@
 			effectExtent:   SerEffectExtent(oDrawing.EffectExtent),
 			extent:         SerExtent(oDrawing.Extent),
 			graphic:        SerGrapicObject(oDrawing.GraphicObj, aComplexFieldsToSave),
-			positionH:      SerPosH(oDrawing.PositionH),
-			positionV:      SerPosV(oDrawing.PositionV),
+			positionH:      SerPositionH(oDrawing.PositionH),
+			positionV:      SerPositionV(oDrawing.PositionV),
 			simplePos:      SerSimplePos(oDrawing.SimplePos),
-			distB:          oDrawing.Distance ? oDrawing.Distance.B : oDrawing.Distance,
-			distL:          oDrawing.Distance ? oDrawing.Distance.L : oDrawing.Distance,
-			distR:          oDrawing.Distance ? oDrawing.Distance.R : oDrawing.Distance,
-			distT:          oDrawing.Distance ? oDrawing.Distance.T : oDrawing.Distance,
+			distB:          oDrawing.Distance ? private_MM2EMU(oDrawing.Distance.B) : oDrawing.Distance,
+			distL:          oDrawing.Distance ? private_MM2EMU(oDrawing.Distance.L) : oDrawing.Distance,
+			distR:          oDrawing.Distance ? private_MM2EMU(oDrawing.Distance.R) : oDrawing.Distance,
+			distT:          oDrawing.Distance ? private_MM2EMU(oDrawing.Distance.T) : oDrawing.Distance,
 			allowOverlap:   oDrawing.AllowOverlap,
 			behindDoc:      oDrawing.behindDoc,
 			hidden:         oDrawing.Hidden,
@@ -3280,6 +3455,7 @@
 			locked:         oDrawing.Locked,
 			relativeHeight: oDrawing.RelativeHeight,
 			wrapType:       GetWrapStrType(oDrawing.wrappingType),
+			drawingType:    oDrawing.DrawingType === drawing_Inline ? "inline" : "anchor",
 			type:           "drawing"
 		};
 
@@ -4543,7 +4719,7 @@
 		if (!oShapeObject)
 			return oShapeObject;
 
-		var oContentHolder     = oShapeObject.textBoxContent || oShapeObject.txBody.content;
+		var oContentHolder     = oShapeObject.textBoxContent || oShapeObject.txBody ? oShapeObject.txBody.content :  oShapeObject.txBody;
 		
 		var oShape = {
 			extX:        private_MM2EMU(oShapeObject.extX),
@@ -4552,7 +4728,7 @@
 			spPr:        SerSpPr(oShapeObject.spPr),
 			style:       SerSpStyle(oShapeObject.style),
 			bodyPr:      SerBodyPr(oShapeObject.bodyPr),
-			content:     SerDocContent(oContentHolder, aComplexFieldsToSave),
+			content:     oContentHolder ? SerDocContent(oContentHolder, aComplexFieldsToSave) : null,
 			type:        "shape",
 		}
 
@@ -6692,11 +6868,8 @@
 	{
 		var oStyleRefObj = new AscFormat.StyleRef();
 		
-		if (oParsedRef.lineRef)
-		{
-			oStyleRefObj.idx   = oParsedRef.idx;
-			oStyleRefObj.Color = ColorFromJSON(oParsedRef.color);
-		}
+		oStyleRefObj.idx   = oParsedRef.idx;
+		oStyleRefObj.Color = ColorFromJSON(oParsedRef.color);
 		
 		return oStyleRefObj;
 	};
@@ -6704,11 +6877,8 @@
 	{
 		var oFontRefObj = new AscFormat.FontRef();
 		
-		if (oParsedRef.lineRef)
-		{
-			oFontRefObj.idx   = oParsedRef.idx;
-			oFontRefObj.Color = ColorFromJSON(oParsedRef.color);
-		}
+		oFontRefObj.idx   = oParsedRef.idx;
+		oFontRefObj.Color = ColorFromJSON(oParsedRef.color);
 		
 		return oFontRefObj;
 	};
@@ -6857,7 +7027,7 @@
 			oBlipFill.tile.algn = oParsedFill.algn;
 		}
 
-		oBlipFill.Effects        = EffectDagFromJSON(oParsedEffects);
+		oBlipFill.Effects        = EffectDagFromJSON(oParsedFill.blip);
 		oParsedFill.rotWithShape = oParsedFill.rotWithShape;
 
 		return oBlipFill;
@@ -7129,7 +7299,7 @@
 	};
 	function DrawingFromJSON(oParsedDrawing)
 	{
-		var oDrawing = new ParaDrawing(nW, nH, null, private_GetDrawingDocument(), private_GetLogicDocument(), null);
+		var oDrawing = new ParaDrawing(undefined, undefined, null, private_GetDrawingDocument(), private_GetLogicDocument(), null);
 		
 		// doc prop
 		oDrawing.docPr = CNvPrFromJSON(oParsedDrawing.docPr);
@@ -7141,8 +7311,8 @@
 		oDrawing.EffectExtent.T = oParsedDrawing.effectExtent.t;
 
 		// extent
-		oDrawing.Extent.H = oParsedDrawing.extent.cy;
-		oDrawing.Extent.W = oParsedDrawing.extent.cx;
+		oDrawing.Extent.H = private_EMU2MM(oParsedDrawing.extent.cy);
+		oDrawing.Extent.W = private_EMU2MM(oParsedDrawing.extent.cx);
 
 		// posH posY
 		oDrawing.PositionH = PositionHFromJSON(oParsedDrawing.positionH);
@@ -7154,10 +7324,10 @@
 		oDrawing.SimplePos.Use = oParsedDrawing.simplePos.use;
 
 		// distance
-		oDrawing.Distance.B = oParsedDrawing.distB;
-		oDrawing.Distance.L = oParsedDrawing.distL;
-		oDrawing.Distance.R = oParsedDrawing.distR;
-		oDrawing.Distance.T = oParsedDrawing.distT;
+		oDrawing.Distance.B = private_EMU2MM(oParsedDrawing.distB);
+		oDrawing.Distance.L = private_EMU2MM(oParsedDrawing.distL);
+		oDrawing.Distance.R = private_EMU2MM(oParsedDrawing.distR);
+		oDrawing.Distance.T = private_EMU2MM(oParsedDrawing.distT);
 
 		// overlap
 		oDrawing.AllowOverlap = oParsedDrawing.allowOverlap;
@@ -7170,16 +7340,27 @@
 		oDrawing.Locked         = oParsedDrawing.locked;
 		oDrawing.RelativeHeight = oParsedDrawing.relativeHeight;
 		oDrawing.wrappingType   = GetWrapNumType(oParsedDrawing.wrapType);
+		oDrawing.DrawingType    = oParsedDrawing.drawingType === "inline" ? drawing_Inline : drawing_Anchor;
 
+		var oGraphicObj = null;
 		switch (oParsedDrawing.graphic.type)
 		{
 			case "image":
-				return new ApiImage(ImageFromJSON(oParsedDrawing.graphic, oDrawing));
+				oGraphicObj = ImageFromJSON(oParsedDrawing.graphic, oDrawing);
+				break;
 			case "shape":
-				return new ApiShape(ShapeFromJSON(oParsedDrawing.graphic, oDrawing));
+				oGraphicObj = ShapeFromJSON(oParsedDrawing.graphic, oDrawing);
+				break;
 			case "chart":
-				return new ApiChart(ChartFromJSON(oParsedDrawing.graphic, oDrawing));
+				oGraphicObj = ChartFromJSON(oParsedDrawing.graphic, oDrawing);
+				break;
 		}
+
+		oGraphicObj.setParent(oDrawing);
+		oDrawing.Set_GraphicObject(oGraphicObj);
+		oDrawing.CheckWH();
+
+		return oDrawing;
 	};
 	function ChartFromJSON(oParsedChart, oParentDrawing)
 	{
@@ -7217,15 +7398,18 @@
 		oParentDrawing.Set_GraphicObject(oShape);
 
 		oShape.nvSpPr = oParsedShape.nvSpPr ? UniNvPrFromJSON(oParsedShape.nvSpPr) : oShape.nvSpPr;
+
 		oShape.spPr   = SpPrFromJSON(oParsedShape.spPr);
+		oShape.spPr.setParent(oShape);
+
 		oShape.style  = oParsedShape.style  ? SpStyleFromJSON(oParsedShape.style) : oShape.style;
 		oShape.bodyPr = oParsedShape.bodyPr ? BodyPrFromJSON(oParsedShape.bodyPr) : oParsedShape.bodyPr;
 
 		if (!oParsedShape.lstStyle)
-			oShape.textBoxContent = DocContentFromJSON(oParsedShape.content)
+			oShape.textBoxContent = oParsedShape.content ? DocContentFromJSON(oParsedShape.content) : oShape.textBoxContent;
 		else
 		{
-
+			
 		}
 
 		return oShape;
@@ -7239,9 +7423,9 @@
 		oImage.setParent(oParentDrawing);
 		oParentDrawing.Set_GraphicObject(oImage);
 
-		oImage.blipFill    = BlipFillFromJSON(oParsedImage.blipFill);
-		oImgObject.nvPicPr = UniNvPrFromJSON(oParsedImage.nvPicPr);
-		oImgObject.spPr    = SpPrFromJSON(oParsedImage.spPr);
+		oImage.blipFill = BlipFillFromJSON(oParsedImage.blipFill);
+		oImage.nvPicPr  = UniNvPrFromJSON(oParsedImage.nvPicPr);
+		oImage.spPr     = SpPrFromJSON(oParsedImage.spPr);
 
 		return oImage;
 	};
@@ -7381,13 +7565,16 @@
 	{
 		var oSpPr = new AscFormat.CSpPr();
 
-		oSpPr.Fill        = FillFromJSON(oParsedPr.fill);
-		oSpPr.effectProps = EffectPropsFromJSON(aEffectDag, aEffectList);
+		oSpPr.Fill        = oParsedPr.fill ? FillFromJSON(oParsedPr.fill) : oSpPr.Fill;
+		oSpPr.effectProps = oParsedPr.effectDag || oParsedPr.effectLst ? EffectPropsFromJSON(oParsedPr.effectDag, oParsedPr.effectLst) : oSpPr.effectProps;
 		oSpPr.bwMode      = oParsedPr.bwMode;
 		oSpPr.geometry    = oParsedPr.custGeom ? GeometryFromJSON(oParsedPr.custGeom) : oParsedPr.custGeom;
 		oSpPr.ln          = oParsedPr.ln       ? LnFromJSON(oParsedPr.ln) : oParsedPr.ln;
 		oSpPr.xfrm        = oParsedPr.xfrm     ? XfrmFromJSON(oParsedPr.xfrm) : oParsedPr.xfrm;
 
+		oSpPr.xfrm && oSpPr.xfrm.setParent(oSpPr);
+		oSpPr.geometry && oSpPr.geometry.setParent(oSpPr);
+		
 		return oSpPr;
 	};
 	function LnFromJSON(oParsedLn)
@@ -7403,11 +7590,70 @@
 		oLn.algn = oParsedLn.algn;
 		oLn.cap  = oParsedLn.cap;
 		oLn.cmpd = oParsedLn.cmpd;
-		oLn.w    = oParsedLn.w;
+		oLn.w    = private_EMU2Pt(oParsedLn.w);
 
 		return oLn;
 	};
-	
+	function EndArrowFromJSON()
+	{
+		var nType = null;
+		switch(oArrow.type)
+		{
+			case "none":
+				nType = AscFormat.LineEndType.None;
+				break;
+			case "arrow":
+				nType = AscFormat.LineEndType.Arrow;
+				break;
+			case "diamond":
+				nType = AscFormat.LineEndType.Diamond;
+				break;
+			case "oval":
+				nType = AscFormat.LineEndType.Oval;
+				break;
+			case "stealth":
+				nType = AscFormat.LineEndType.Stealth;
+				break;
+			case "triangle":
+				nType = AscFormat.LineEndType.Triangle;
+				break;
+		}
+
+		var nLineEndSize = null;
+		switch(oArrow.len)
+		{
+			case "lg":
+				nLineEndSize = AscFormat.LineEndSize.Large;
+				break;
+			case "med":
+				nLineEndSize = AscFormat.LineEndSize.Mid;
+				break;
+			case "sm":
+				nLineEndSize = AscFormat.LineEndSize.Small;
+				break;
+		}
+
+		var nLineEndWidth = null;
+		switch(oArrow.w)
+		{
+			case "lg":
+				nLineEndWidth = AscFormat.LineEndSize.Large;
+				break;
+			case "med":
+				nLineEndWidth = AscFormat.LineEndSize.Mid;
+				break;
+			case "sm":
+				nLineEndWidth = AscFormat.LineEndSize.Small;
+				break;
+		}
+
+		var oEndArrow = new AscFormat.EndArrow();
+		oEndArrow.type = nType;
+		oEndArrow.len  = nLineEndSize;
+		oEndArrow.w    = nLineEndWidth;
+
+		return oEndArrow;
+	};
 	function LineJoinFromJSON(oParsedLineJoin)
 	{
 		var oLineJoin = new AscFormat.LineJoin();
@@ -7461,10 +7707,131 @@
 	{
 		var oGeom = new AscFormat.Geometry();
 
-		var arrAhPolar = oParsedGeom.ahLst.ahPolar;
-		var arrAhXY    = oParsedGeom.ahLst.ahXY;
+		// AhPolar
+		for (var nItem = 0; nItem < oParsedGeom.ahLst.ahPolar.length; nItem++)
+		{
+			var oItem = oParsedGeom.ahLst.ahPolar[nItem];
+			oGeom.ahPolarLstInfo.push({
+				posX:     oItem.pos.x,
+				poxY:     oItem.pox.y,
+				gdRefAng: oItem.gdRefAng,
+				gdRefR:   oItem.gdRefR,
+				maxAng:   oItem.maxAng,
+				maxR:     oItem.maxR,
+				minAng:   oItem.minAng,
+				minR:     oItem.minR
+			});
+		}
 		
+		// AhXY
+		for (var nItem = 0; nItem < oParsedGeom.ahLst.ahXY.length; nItem++)
+		{
+			var oItem = oParsedGeom.ahLst.ahXY[nItem];
+			oGeom.ahXYLstInfo.push({
+				posX:   oItem.pos.x,
+				poxY:   oItem.pos.y,
+				gdRefX: oItem.gdRefX,
+				gdRefY: oItem.gdRefY,
+				maxX:   oItem.maxX,
+				maxY:   oItem.maxY,
+				minX:   oItem.minX,
+				minY:   oItem.minY
+			});
+		}
 
+		// Av
+		for (var key in oParsedGeom.avLst)
+			oGeom.avLst[key] = oParsedGeom.avLst[key];
+
+		// adj
+		for (var key in oParsedGeom.adjLst)
+			oGeom.gdLst[key] = oParsedGeom.adjLst[key];
+
+		// Cnx
+		for (var nItem = 0; nItem < oParsedGeom.cnxLst.length; nItem++)
+		{
+			var oItem = oParsedGeom.cnxLst[nItem];
+			oGeom.cnxLstInfo.push({
+				x:   oItem.pos.x,
+				y:   oItem.pos.y,
+				ang: oItem.ang
+			});
+		}
+
+		// gdLst
+		for (var nGd = 0; nGd < oParsedGeom.gdLst.length; nGd++)
+		{
+			oGeom.gdLstInfo.push({
+				formula: GetFormulaNumType(oParsedGeom.gdLst[nGd].fmla),
+				x:       oParsedGeom.gdLst[nGd].x,
+				y:       oParsedGeom.gdLst[nGd].y,
+				z:       oParsedGeom.gdLst[nGd].z,
+				name:    oParsedGeom.gdLst[nGd].name
+			});
+		}
+
+		// pathLst
+		for (var nPath = 0; nPath < oParsedGeom.pathLst.length; nPath++)
+			oGeom.pathLst.push(GeomPathFromJSON(oParsedGeom.pathLst[nPath]));
+
+		oGeom.rectS = oParsedGeom.rect;
+
+		return oGeom;
+	};
+	function GeomPathFromJSON(oParsedPath)
+	{
+		var oPath = new AscFormat.Path();
+
+		for (var nCommand = 0; nCommand < oParsedPath.commands.length; nCommand++)
+		{
+			var arrKeys  = Object.keys(oParsedPath.commands[nCommand]);
+			var oCommand = {};
+			switch (oParsedPath.commands[nCommand].id)
+			{
+				case "moveTo":
+					oCommand["id"] =  0;
+					break;
+				case "lnTo":
+					oCommand["id"] =  1;
+					break;
+				case "arcTo":
+					oCommand["id"] =  2;
+					break;
+				case "cubicBezTo":
+					oCommand["id"] =  3;
+					break;
+				case "quadBezTo":
+					oCommand["id"] =  4;
+					break;
+				case "close":
+					oCommand["id"] =  5;
+					break;
+			}
+			if (oParsedPath.commands[nCommand].id !== "arcTo" && oParsedPath.commands[nCommand].id !== "close")
+			{
+				var arrPtKeys  = Object.keys(oParsedPath.commands[nCommand]["pt"]);
+				for (var key in arrPtKeys)
+					oCommand[arrPtKeys[key].toUpperCase()] = oParsedPath.commands[nCommand]["pt"][arrPtKeys[key]];
+			}
+			for (var key in arrKeys)
+			{
+				if (arrKeys[key] === "id")
+					continue;
+				if (arrKeys[key] !== "pt")
+					oCommand[arrKeys[key]] = oParsedPath.commands[nCommand][arrKeys[key]];
+			}
+				
+
+			oPath.ArrPathCommandInfo.push(oCommand);
+		}
+
+		oPath.extrusionOk = oParsedPath.extrusionOk;
+		oPath.fill        = oParsedPath.fill;
+		oPath.pathH       = oParsedPath.h;
+		oPath.stroke      = oParsedPath.stroke;
+		oPath.pathW       = oParsedPath.w;
+
+		return oPath;
 	};
 	function UniNvPrFromJSON(oParsedPr)
 	{
@@ -7495,8 +7862,8 @@
 		var oNvPr = new AscFormat.NvPr();
 
 		oNvPr.isPhoto   = oParsedPr.isPhoto;
-		oNvPr.ph        = PlaceholderFromJSON(oParsedPr.ph);
-		oNvPr.unimedia  = UniMediaFromJSON(oParsedPr.unimedia);
+		oNvPr.ph        = oParsedPr.ph ? PlaceholderFromJSON(oParsedPr.ph) : oParsedPr.ph;
+		oNvPr.unimedia  = oParsedPr.unimedia ? UniMediaFromJSON(oParsedPr.unimedia) : oNvPr.unimedia;
 		oNvPr.userDrawn = oParsedPr.userDrawn;
 
 		return oNvPr;
@@ -7567,26 +7934,41 @@
 
 		return oHLink;
 	};
-	function PositionHFromJSON(oParsedPos)
+	function PositionHFromJSON(oParsedPosH)
 	{
 		// anchorH
-		var nHorAnchor = undefined;
-		switch (oParsedPos.relativeFrom)
+		var nRelFromH = undefined;
+		switch (oParsedPosH.relativeFrom)
 		{
-			case "margin":
-				nHorAnchor = Asc.c_oAscHAnchor.Margin;
+			case "character":
+				nRelFromH = Asc.c_oAscRelativeFromH.Character;
 				break;
-			case "text":
-				nHorAnchor = Asc.c_oAscHAnchor.Text;
+			case "column":
+				nRelFromH = Asc.c_oAscRelativeFromH.Column;
+				break;
+			case "insideMargin":
+				nRelFromH = Asc.c_oAscRelativeFromH.InsideMargin;
+				break;
+			case "leftMargin":
+				nRelFromH = Asc.c_oAscRelativeFromH.LeftMargin;
+				break;
+			case "margin":
+				nRelFromH = Asc.c_oAscRelativeFromH.Margin;
+				break;
+			case "outsideMargin":
+				nRelFromH = Asc.c_oAscRelativeFromH.OutsideMargin;
 				break;
 			case "page":
-				nHorAnchor = Asc.c_oAscHAnchor.Page;
+				nRelFromH = Asc.c_oAscRelativeFromH.Page;
+				break;
+			case "rightMargin":
+				nRelFromH = Asc.c_oAscRelativeFromH.RightMargin;
 				break;
 		}
 
 		// alignH
 		var nHorAlign = undefined;
-		if (oParsedPos.align)
+		if (oParsedPosH.align)
 		{
 			switch (oPosH.align)
 			{
@@ -7608,37 +7990,52 @@
 			}
 		}
 
-		var nValue = oParsedPos.align ? nHorAlign : (oParsedPos.percent ? oParsedPos.posOffset : private_EMU2MM(oParsedPos.posOffset));
+		var nValue = oParsedPosH.align ? nHorAlign : (oParsedPosH.percent ? oParsedPosH.posOffset : private_EMU2MM(oParsedPosH.posOffset));
 
 		return {
-			Align:        oParsedPos.align ? true : false,
-			Percent:      oParsedPos.percent ? true : false,
-			RelativeFrom: nHorAnchor,
+			Align:        oParsedPosH.align ? true : false,
+			Percent:      oParsedPosH.percent ? true : false,
+			RelativeFrom: nRelFromH,
 			Value:        nValue
 		}
 	};
-	function PositionVFromJSON(oParsedPos)
+	function PositionVFromJSON(oParsedPosV)
 	{
 		// anchorV
-		var nVerAnchor = undefined;
-		switch (oPosV.RelativeFrom)
+		var nRelFromV = undefined;
+		switch (oParsedPosV.relativeFrom)
 		{
-			case "margin":
-				nVerAnchor = Asc.c_oAscVAnchor.Margin;
+			case "bottomMargin":
+				nRelFromV = Asc.c_oAscRelativeFromH.BottomMargin;
 				break;
-			case "text":
-				nVerAnchor = Asc.c_oAscVAnchor.Text;
+			case "insideMargin":
+				nRelFromV = Asc.c_oAscRelativeFromH.InsideMargin;
+				break;
+			case "line":
+				nRelFromV = Asc.c_oAscRelativeFromH.Line;
+				break;
+			case "margin":
+				nRelFromV = Asc.c_oAscRelativeFromH.Margin;
+				break;
+			case "outsideMargin":
+				nRelFromV = Asc.c_oAscRelativeFromH.OutsideMargin;
 				break;
 			case "page":
-				nVerAnchor = Asc.c_oAscVAnchor.Page;
+				nRelFromV = Asc.c_oAscRelativeFromH.Page;
+				break;
+			case "paragraph":
+				nRelFromV = Asc.c_oAscRelativeFromH.Paragraph;
+				break;
+			case "topMargin":
+				nRelFromV = Asc.c_oAscRelativeFromH.TopMargin;
 				break;
 		}
 
 		// alignV
 		var nVerAlign = undefined;
-		if (oPosV.Align)
+		if (oParsedPosV.Align)
 		{
-			switch (oPosV.Value)
+			switch (oParsedPosV.Value)
 			{
 				case "bottom":
 					nVerAlign = Asc.c_oAscYAlign.Bottom;
@@ -7661,12 +8058,12 @@
 			}
 		}
 
-		var nValue = oParsedPos.align ? nVerAlign : (oParsedPos.percent ? oParsedPos.posOffset : private_EMU2MM(oParsedPos.posOffset));
+		var nValue = oParsedPosV.align ? nVerAlign : (oParsedPosV.percent ? oParsedPosV.posOffset : private_EMU2MM(oParsedPosV.posOffset));
 
 		return {
-			Align:        oParsedPos.align ? true : false,
-			Percent:      oParsedPos.percent ? true : false,
-			RelativeFrom: nVerAnchor,
+			Align:        oParsedPosV.align ? true : false,
+			Percent:      oParsedPosV.percent ? true : false,
+			RelativeFrom: nRelFromV,
 			Value:        nValue
 		}
 	};
