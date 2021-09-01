@@ -1197,18 +1197,52 @@
 		if (!oLn)
 			return oLn;
 		
+		var sAlgnType = oLn.algn === 0 ? "ctr" : "in";
+		var sCapType  = undefined;
+		switch (oLn.cap)
+		{
+			case 0:
+				sCapType = "flat";
+				break;
+			case 1:
+				sCapType = "rnd";
+				break;
+			case 2:
+				sCapType = "sq";
+				break;
+		}
+		var sCmpdType = undefined;
+		switch(oLn.cmpd)
+		{
+			case 0:
+				sCmpdType = "dbl";
+				break;
+			case 1:
+				sCmpdType = "sng";
+				break;
+			case 2:
+				sCmpdType = "thickThin";
+				break;
+			case 3:
+				sCmpdType = "thinThick";
+				break;
+			case 4:
+				sCmpdType = "tri";
+				break;
+		}
+		
 		return {
 			fill:     SerFill(oLn.Fill),
 			lineJoin: SerLineJoin(oLn.Join),
 			
-			algn:     oLn.algn,
-			cap:      oLn.cap,
-			cmpd:     oLn.cmpd,
-			w:        private_Pt2EMU(oLn.w),
+			algn:     sAlgnType,
+			cap:      sCapType,
+			cmpd:     sCmpdType,
+			w:        oLn.w,
 
 			headEnd:  SerEndArrow(oLn.headEnd),
 
-			prstDash: oLn.prstDash,
+			prstDash: GetPenDashStrType(oLn.prstDash),
 
 			tailEnd:  SerEndArrow(oLn.tailEnd)
 		}
@@ -4626,26 +4660,6 @@
 		if (!oChartSpace)
 			return oChartSpace;
 
-		var sLegendPos = undefined;
-		switch (oBullet.bulletType)
-		{
-			case Asc.c_oAscChartLegendShowSettings.bottom:
-				sLegendPos = "b";
-				break;
-			case Asc.c_oAscChartLegendShowSettings.left:
-				sLegendPos = "l";
-				break;
-			case Asc.c_oAscChartLegendShowSettings.right:
-				sLegendPos = "r";
-				break;
-			case Asc.c_oAscChartLegendShowSettings.top:
-				sLegendPos = "t";
-				break;
-			case Asc.c_oAscChartLegendShowSettings.topRight:
-				sLegendPos = "tr";
-				break;
-		}
-
 		return {
 			extX: private_MM2EMU(oChartSpace.extX),
 			extY: private_MM2EMU(oChartSpace.extY),
@@ -4690,6 +4704,26 @@
 		if (!oLegend)
 			return oLegend;
 		
+		var sLegendPos = undefined;
+		switch (oLegend.legendPos)
+		{
+			case Asc.c_oAscChartLegendShowSettings.bottom:
+				sLegendPos = "b";
+				break;
+			case Asc.c_oAscChartLegendShowSettings.left:
+				sLegendPos = "l";
+				break;
+			case Asc.c_oAscChartLegendShowSettings.right:
+				sLegendPos = "r";
+				break;
+			case Asc.c_oAscChartLegendShowSettings.top:
+				sLegendPos = "t";
+				break;
+			case Asc.c_oAscChartLegendShowSettings.topRight:
+				sLegendPos = "tr";
+				break;
+		}
+
 		return	{
 			layout:      SerLayout(oLegend.layout),
 			legendEntry: SerLegendEntries(oLegend.legendEntryes),
@@ -7002,7 +7036,7 @@
 
 		return oColorObj;
 	};
-	function BlipFillFromJSON(oParsedFill)
+	function BlipFillFromJSON(oParsedFill, sRasterImageId)
 	{
 		var oBlipFill = new AscFormat.CBlipFill();
 
@@ -7027,9 +7061,11 @@
 			oBlipFill.tile.algn = oParsedFill.algn;
 		}
 
-		oBlipFill.Effects        = EffectDagFromJSON(oParsedFill.blip);
-		oParsedFill.rotWithShape = oParsedFill.rotWithShape;
+		for (var nEffect = 0; nEffect < oParsedFill.blip.length; nEffect++)
+			oBlipFill.Effects.push(EffectDagFromJSON(oParsedFill.blip[nEffect]));
 
+		oParsedFill.rotWithShape = oParsedFill.rotWithShape;
+		oBlipFill.RasterImageId  = sRasterImageId;
 		return oBlipFill;
 	};
 	function EffectDagFromJSON(oParsedEff)
@@ -7351,7 +7387,7 @@
 			case "shape":
 				oGraphicObj = ShapeFromJSON(oParsedDrawing.graphic, oDrawing);
 				break;
-			case "chart":
+			case "chartSpace":
 				oGraphicObj = ChartFromJSON(oParsedDrawing.graphic, oDrawing);
 				break;
 		}
@@ -7364,18 +7400,16 @@
 	};
 	function ChartFromJSON(oParsedChart, oParentDrawing)
 	{
-		var oDrawingDocument = private_GetDrawingDocument();
-		var nW = private_EMU2MM(nWidth);
-		var nH = private_EMU2MM(nHeight);
-		var oDrawing = new ParaDrawing( nW, nH, null, oDrawingDocument, null, null);
-		var oChartSpace = AscFormat.builder_CreateChart(nW, nH, sType, aCatNames, aSeriesNames, aSeries, nStyleIndex);
+		var nW = private_EMU2MM(oParsedChart.extX);
+		var nH = private_EMU2MM(oParsedChart.extY);
+		var oChartSpace = AscFormat.builder_CreateChart(nW, nH, sType, [], [], [], undefined);
+
 		if(!oChartSpace)
-		{
 			return null;
-		}
-		oChartSpace.setParent(oDrawing);
-		oDrawing.Set_GraphicObject(oChartSpace);
-		oDrawing.setExtent(oChartSpace.spPr.xfrm.extX, oChartSpace.spPr.xfrm.extY );
+
+		oChartSpace.setParent(oParentDrawing);
+		oParentDrawing.Set_GraphicObject(oChartSpace);
+		oParentDrawing.setExtent(oChartSpace.spPr.xfrm.extX, oChartSpace.spPr.xfrm.extY );
 
 		return oChartSpace;
 	};
@@ -7423,7 +7457,7 @@
 		oImage.setParent(oParentDrawing);
 		oParentDrawing.Set_GraphicObject(oImage);
 
-		oImage.blipFill = BlipFillFromJSON(oParsedImage.blipFill);
+		oImage.blipFill = BlipFillFromJSON(oParsedImage.blipFill, oImage.blipFill.RasterImageId);
 		oImage.nvPicPr  = UniNvPrFromJSON(oParsedImage.nvPicPr);
 		oImage.spPr     = SpPrFromJSON(oParsedImage.spPr);
 
@@ -7582,17 +7616,111 @@
 		var oLn = new AscFormat.CLn();
 
 		oLn.Fill     = oParsedLn.fill     ? FillFromJSON(oParsedLn.fill)         : oLn.Fill;
-		oLn.prstDash = oParsedLn.prstDash ? oParsedLn.prstDash                   : oLn.prstDash;
 		oLn.Join     = oParsedLn.lineJoin ? LineJoinFromJSON(oParsedLn.lineJoin) : oLn.Join;
 		oLn.headEnd  = oParsedLn.headEnd  ? EndArrowFromJSON(oParsedLn.headEnd)  : oLn.headEnd;
 		oLn.tailEnd  = oParsedLn.tailEnd  ? EndArrowFromJSON(oParsedLn.tailEnd)  : oLn.tailEnd;
+		oLn.prstDash = GetPenDashNumType(oParsedLn.prstDash);
 
-		oLn.algn = oParsedLn.algn;
-		oLn.cap  = oParsedLn.cap;
-		oLn.cmpd = oParsedLn.cmpd;
-		oLn.w    = private_EMU2Pt(oParsedLn.w);
+		var nAlgnType = oParsedLn.algn === "ctr" ? 0 : 1;
+		var nCapType  = undefined;
+		switch (oParsedLn.cap)
+		{
+			case "flat":
+				nCapType = 0;
+				break;
+			case "rnd":
+				nCapType = 1;
+				break;
+			case "sq":
+				nCapType = 2;
+				break;
+		}
+		var nCmpdType = undefined;
+		switch( oParsedLn.cmpd)
+		{
+			case "dbl":
+				nCmpdType = 0;
+				break;
+			case "sng":
+				nCmpdType = 1;
+				break;
+			case "thickThin":
+				nCmpdType = 2;
+				break;
+			case "thinThick":
+				nCmpdType = 3;
+				break;
+			case "tri":
+				nCmpdType = 4;
+				break;
+		}
+
+		oLn.algn = nAlgnType;
+		oLn.cap  = nCapType;
+		oLn.cmpd = nCmpdType;
+		oLn.w    = oParsedLn.w;
 
 		return oLn;
+	};
+	function GetPenDashStrType(nType)
+	{
+		switch (nType)
+		{
+			case Asc.c_oDashType.dash:
+				return "dash";
+			case Asc.c_oDashType.dashDot:
+				return "dashDot";
+			case Asc.c_oDashType.dot:
+				return "dot";
+			case Asc.c_oDashType.lgDash:
+				return "lgDash";
+			case Asc.c_oDashType.lgDashDot:
+				return "lgDashDot";
+			case Asc.c_oDashType.lgDashDotDot:
+				return "lgDashDotDot";
+			case Asc.c_oDashType.solid:
+				return "solid";
+			case Asc.c_oDashType.sysDash:
+				return "sysDash";
+			case Asc.c_oDashType.sysDashDot:
+				return "sysDashDot";
+			case Asc.c_oDashType.sysDashDotDot:
+				return "sysDashDotDot";
+			case Asc.c_oDashType.sysDot:
+				return "sysDot";
+			default:
+				return nType;
+		}
+	};
+	function GetPenDashNumType(sType)
+	{
+		switch (sType)
+		{
+			case "dash":
+				return Asc.c_oDashType.dash;
+			case "dashDot":
+				return Asc.c_oDashType.dashDot;
+			case "dot":
+				return Asc.c_oDashType.dot;
+			case "lgDash":
+				return Asc.c_oDashType.lgDash;
+			case "lgDashDot":
+				return Asc.c_oDashType.lgDashDot;
+			case "lgDashDotDot":
+				return Asc.c_oDashType.lgDashDotDot;
+			case "solid":
+				return Asc.c_oDashType.solid;
+			case "sysDash":
+				return Asc.c_oDashType.sysDash;
+			case "sysDashDot":
+				return Asc.c_oDashType.sysDashDot;
+			case "sysDashDotDot":
+				return Asc.c_oDashType.sysDashDotDot;
+			case "sysDot":
+				return Asc.c_oDashType.sysDot;
+			default:
+				return sType;
+		}
 	};
 	function EndArrowFromJSON()
 	{
@@ -20221,6 +20349,7 @@
 	Api.prototype["MailMerge"]                       = Api.prototype.MailMerge;
 	Api.prototype["ReplaceTextSmart"]				 = Api.prototype.ReplaceTextSmart;
 	Api.prototype["CoAuthoringChatSendMessage"]		 = Api.prototype.CoAuthoringChatSendMessage;
+	Api.prototype["FromJSON"]		                 = Api.prototype.FromJSON;
 	
 	ApiUnsupported.prototype["GetClassType"]         = ApiUnsupported.prototype.GetClassType;
 
@@ -20638,6 +20767,7 @@
 	ApiDrawing.prototype["SetOutLine"]               = ApiDrawing.prototype.SetOutLine;
 	ApiDrawing.prototype["GetNextDrawing"]           = ApiDrawing.prototype.GetNextDrawing;
 	ApiDrawing.prototype["GetPrevDrawing"]           = ApiDrawing.prototype.GetPrevDrawing;
+	ApiDrawing.prototype["ToJSON"]                   = ApiDrawing.prototype.ToJSON;
 
 	ApiImage.prototype["GetClassType"]               = ApiImage.prototype.GetClassType;
 	ApiImage.prototype["GetNextImage"]               = ApiImage.prototype.GetNextImage;
