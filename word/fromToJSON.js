@@ -193,6 +193,13 @@
 		this.notesMasterMap = {};
 		this.themesMap      = {};
 	}
+	function ReaderFromJSON()
+	{
+		this.layoutsMap     = {};
+		this.mastersMap     = {};
+		this.notesMasterMap = {};
+		this.themesMap      = {};
+	}
     //----------------------------------------------------------export----------------------------------------------------
     window['AscCommon']       = window['AscCommon'] || {};
     window['AscFormat']       = window['AscFormat'] || {};
