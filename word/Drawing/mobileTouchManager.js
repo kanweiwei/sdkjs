@@ -257,6 +257,7 @@
 				this.delegate.HtmlPage.NoneRepaintPages = true;
 
 				this.ZoomDistance = this.getPointerDistance(e);
+				this.ZoomCenter   = this.getPointerCenter(e);
 				this.ZoomValue    = this.delegate.GetZoom();
 
 				break;
@@ -352,6 +353,8 @@
 					_zoomCur = this.ZoomValueMax;
 
 				this.delegate.SetZoom(_zoomCur);
+				this.delegate.HtmlPage.ScrollToPosition(this.ZoomCenter.PC2.X, this.ZoomCenter.PC2.Y, this.ZoomCenter.PC2.Page);
+
 				AscCommon.stopEvent(e);
 				break;
 			}
@@ -517,6 +520,8 @@
 			}
 			case AscCommon.MobileTouchMode.Zoom:
 			{
+				// здесь надо сделать скролл к центру зума
+				this.delegate.HtmlPage.ScrollToPosition(this.ZoomCenter.PC2.X, this.ZoomCenter.PC2.Y, this.ZoomCenter.PC2.Page);
 				// здесь нужно запускать отрисовку, если есть анимация зума
 				this.delegate.HtmlPage.NoneRepaintPages = false;
 				this.delegate.HtmlPage.m_bIsFullRepaint = true;

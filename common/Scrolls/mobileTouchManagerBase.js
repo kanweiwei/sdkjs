@@ -612,6 +612,7 @@
 		/* zoom */
 		this.ZoomEnabled  = (_config.isZoomEnabled !== false);
 		this.ZoomDistance = 0;
+		this.ZoomCenter   = null;
 		this.ZoomValue    = 100;
 		this.ZoomValueMin = 50;
 		this.ZoomValueMax = 300;
@@ -2013,8 +2014,8 @@
 				this.delegate.HtmlPage.NoneRepaintPages = true;
 
 				this.ZoomDistance = this.getPointerDistance(e);
+				this.ZoomCenter   = this.getPointerCenter(e);
 				this.ZoomValue    = this.delegate.GetZoom();
-
 				break;
 			}
 		}
@@ -2055,7 +2056,16 @@
 				}
 
 				var zoomCurrentDist = this.getPointerDistance(e);
-
+				// здесь пока скорее всего не надо, так как у нас там пока ещё работает стандартная отрисовка со стандартным скроллом
+				// надо бы её убрать, так как из-за неё зум сначала рисуется в одно место, а потом в другое
+				// но скорее всего здесь их рассчитывать координаты центра не надо (их достаточно посчитать 1 раз на start)
+				// а здесь уже просто нужно к ним скролится
+				if (this.delegate.GetZoom() > this.ZoomValue) {
+					this.delegate.DrawingDocument.m_oDocumentRenderer.ToCoordinates(this.ZoomCenter.PC2.x, this.ZoomCenter.PC2.y, this.ZoomCenter.PC2.index);
+					// this.delegate.ScrollTo({x : -this.ZoomCenter.x, y : -this.ZoomCenter.y, directionLocked:'n'});
+					// this.iScroll.refresh({X : -this.ZoomCenter.x, Y : - this.ZoomCenter.y});
+				}
+				
 				if (zoomCurrentDist == 0)
 					zoomCurrentDist = 1;
 
@@ -2098,6 +2108,18 @@
 			}
 			case AscCommon.MobileTouchMode.Zoom:
 			{
+				// здесь надо сделать скролл к центру зума
+				if (this.delegate.GetZoom() > this.ZoomValue) {
+					// пока только на увеличение, на уменьшении почему-то скролиться не туда (видимо не правильно считать просто центр)
+					// скорее всего надо зумиться не просто к центру, а брать текущие размеры видимой области, делить их на 2 и прибавлять к центру (чтобы было по центру)
+					this.delegate.DrawingDocument.m_oDocumentRenderer.ToCoordinates(this.ZoomCenter.PC2.x, this.ZoomCenter.PC2.y, this.ZoomCenter.PC2.index);
+					// нужно как-то обновить ещё iscroll теперь по этим же координатам, иначе при попытке скролить после зума получается, что скролл начинается не с того места
+					// для это надо как-то может посмотреть на каком значении такущие скроллы (в процентах или коэффициент) и посчитать эти значения для iscroll, так как у них разные величины
+					// иначе даже при обычном зуме из-за этого скрол потом не с этого места начинатеся
+					// this.delegate.ScrollTo({x : -this.ZoomCenter.PC2.x, y : -this.ZoomCenter.PC2.y, directionLocked:'n'});
+					// this.iScroll.refresh({X : -this.ZoomCenter.PC2.x, Y : - this.ZoomCenter.PC2.y});	
+				}
+				
 				// здесь нужно запускать отрисовку, если есть анимация зума
 				this.delegate.HtmlPage.NoneRepaintPages = false;
 
@@ -2238,6 +2260,65 @@
 		}
 
 		return 0;
+	};
+
+	CMobileTouchManagerBase.prototype.getPointerCenter = function(e)
+	{
+		console.log('CMobileTouchManagerBase.prototype.getPointerCenter');
+		var isPointers = this.checkPointerEvent(e);
+		var center = 0;
+		if (e.touches && (e.touches.length > 1) && !isPointers)
+		{
+			var _x1 = (e.touches[0].pageX !== undefined) ? e.touches[0].pageX : e.touches[0].clientX;
+			var _y1 = (e.touches[0].pageY !== undefined) ? e.touches[0].pageY : e.touches[0].clientY;
+
+			var _x2 = (e.touches[1].pageX !== undefined) ? e.touches[1].pageX : e.touches[1].clientX;
+			var _y2 = (e.touches[1].pageY !== undefined) ? e.touches[1].pageY : e.touches[1].clientY;
+
+			center = {
+				x : _x2 + ( (_x1 - _x2) >> 1),
+				y : _y2 + ( (_y1 - _y2) >> 1)
+			};
+			// пытаюсь найти точку на страце к которой потом нужно будет скролиться
+			if (this.delegate.IsNativeViewer && this.delegate.IsNativeViewer()) {
+				center.PC1 = this.delegate.DrawingDocument.m_oDocumentRenderer.getPageByCoords(center.x, center.y);
+				center.PC2 = this.delegate.DrawingDocument.m_oDocumentRenderer.getPageByCoords2(center.x, center.y);
+			} else {
+				center.PC2 = this.delegate.ConvertCoordsFromCursor(center.x, center.y);
+			}
+			return center;
+		}
+		else if (isPointers)
+		{
+			var _touch1 = {X : 0, Y : 0};
+			var _touch2 = {X : 0, Y : 0};
+			var _counter = 0;
+
+			for (var i in this.pointerTouchesCoords)
+			{
+				if (_counter == 0)
+					_touch1 = this.pointerTouchesCoords[i];
+				else
+					_touch2 = this.pointerTouchesCoords[i];
+				++_counter;
+				if (_counter > 1)
+					break;
+			}
+			center = {
+				x : _touch2.X + ( (_touch1.X - _touch2.X) >> 1),
+				y : _touch2.Y + ( (_touch1.Y - _touch2.Y) >> 1)
+			};
+			// пытаюсь найти точку на страце к которой потом нужно будет скролиться
+			if (this.delegate.IsNativeViewer && this.delegate.IsNativeViewer()) {
+				center.PC1 = this.delegate.DrawingDocument.m_oDocumentRenderer.getPageByCoords(center.x, center.y);
+				center.PC2 = this.delegate.DrawingDocument.m_oDocumentRenderer.getPageByCoords2(center.x, center.y);
+			} else {
+				center.PC2 = this.delegate.ConvertCoordsFromCursor(center.x, center.y);
+			}
+			return center;
+		}
+
+		return null;
 	};
 
 	CMobileTouchManagerBase.prototype.getPointerCount = function(e)
