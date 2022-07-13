@@ -471,6 +471,14 @@
 		}
 		return false;
 	}
+	function _includeInHolidaysTime(time, holidays) {
+		for (var i = 0; i < holidays.length; i++) {
+			if (time == holidays[i].getTime()) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	function weekNumber(dt, iso, type) {
 		if (undefined === iso) {
@@ -481,7 +489,12 @@
 		}
 
 		dt.setUTCHours(0, 0, 0);
-		var startOfYear = new cDate(Date.UTC(dt.getUTCFullYear(), 0, 1));
+		var utcFullYear = dt.getUTCFullYear();
+		if (type) {
+			//если это исключение не обработать, то будет бесконечная рекурсия
+			utcFullYear = Date.prototype.getUTCFullYear.call(dt);
+		}
+		var startOfYear = new cDate(Date.UTC(utcFullYear, 0, 1));
 		var endOfYear = new cDate(dt);
 		endOfYear.setUTCMonth(11);
 		endOfYear.setUTCDate(31);
@@ -1524,13 +1537,19 @@
 
 			var date = new cDate(start);
 			var startTime = date.getTime();
+			var startDay = date.getUTCDay();
 			for (var i = 0; i < difAbs; i++) {
-				date.setTime(startTime);
-				date.setUTCDate(start.getUTCDate() + i);
-
-				if (!_includeInHolidays(date, holidays) && !weekends[date.getUTCDay()]) {
+				if (!weekends[startDay] && !_includeInHolidaysTime(startTime, holidays)) {
 					count++;
 				}
+				startDay = (startDay + 1) % 7;
+				startTime +=  AscCommonExcel.c_msPerDay;
+
+				// date.setTime(startTime + i * AscCommonExcel.c_msPerDay);
+				//
+				// if (!_includeInHolidays(date, holidays) && !weekends[date.getUTCDay()]) {
+				// 	count++;
+				// }
 			}
 
 			return new cNumber((dif < 0 ? -1 : 1) * count);
@@ -1556,7 +1575,7 @@
 	cNOW.prototype.Calculate = function () {
 		var d = new cDate();
 		var res =
-			new cNumber(d.getExcelDate() + (d.getHours() * 60 * 60 + d.getMinutes() * 60 + d.getSeconds()) / c_sPerDay);
+			new cNumber(d.getExcelDate(true) + (d.getHours() * 60 * 60 + d.getMinutes() * 60 + d.getSeconds()) / c_sPerDay);
 		res.numFormat = 22;
 		return res;
 	};
@@ -1760,7 +1779,7 @@
 	cTODAY.prototype.ca = true;
 	cTODAY.prototype.argumentsType = null;
 	cTODAY.prototype.Calculate = function () {
-		var res = new cNumber(new cDate().getExcelDate());
+		var res = new cNumber(new cDate().getExcelDate(true));
 		res.numFormat = 14;
 		return res;
 	};

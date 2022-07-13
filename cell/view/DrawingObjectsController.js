@@ -337,15 +337,20 @@ DrawingObjectsController.prototype.handleOleObjectDoubleClick = function(drawing
     var drawingObjects = this.drawingObjects;
     var oThis = this;
     var fCallback = function(){
-        var pluginData = new Asc.CPluginData();
-        pluginData.setAttribute("data", oleObject.m_sData);
-        pluginData.setAttribute("guid", oleObject.m_sApplicationId);
-        pluginData.setAttribute("width", oleObject.extX);
-        pluginData.setAttribute("height", oleObject.extY);
-        pluginData.setAttribute("widthPix", oleObject.m_nPixWidth);
-        pluginData.setAttribute("heightPix", oleObject.m_nPixHeight);
-        pluginData.setAttribute("objectId", oleObject.Id);
-        window["Asc"]["editor"].asc_pluginRun(oleObject.m_sApplicationId, 0, pluginData);
+        if(oleObject.m_oMathObject) {
+            window["Asc"]["editor"].sendEvent("asc_onConvertEquationToMath", oleObject);
+        }
+        else {
+            var pluginData = new Asc.CPluginData();
+            pluginData.setAttribute("data", oleObject.m_sData);
+            pluginData.setAttribute("guid", oleObject.m_sApplicationId);
+            pluginData.setAttribute("width", oleObject.extX);
+            pluginData.setAttribute("height", oleObject.extY);
+            pluginData.setAttribute("widthPix", oleObject.m_nPixWidth);
+            pluginData.setAttribute("heightPix", oleObject.m_nPixHeight);
+            pluginData.setAttribute("objectId", oleObject.Id);
+            window["Asc"]["editor"].asc_pluginRun(oleObject.m_sApplicationId, 0, pluginData);
+        }
         oThis.clearTrackObjects();
         oThis.clearPreTrackObjects();
         oThis.changeCurrentState(new AscFormat.NullState(oThis));
@@ -459,24 +464,22 @@ DrawingObjectsController.prototype.addImageFromParams = function(rasterImageId, 
     image.addToRecalculate();
 };
 
-DrawingObjectsController.prototype.addOleObjectFromParams = function(fPosX, fPosY, fWidth, fHeight, nWidthPix, nHeightPix, sLocalUrl, sData, sApplicationId){
+DrawingObjectsController.prototype.addOleObjectFromParams = function(fPosX, fPosY, fWidth, fHeight, nWidthPix, nHeightPix, sLocalUrl, sData, sApplicationId, bSelect){
     var oOleObject = this.createOleObject(sData, sApplicationId, sLocalUrl, fPosX, fPosY, fWidth, fHeight, nWidthPix, nHeightPix);
     this.resetSelection();
     oOleObject.setWorksheet(this.drawingObjects.getWorksheetModel());
     oOleObject.setDrawingObjects(this.drawingObjects);
     oOleObject.addToDrawingObjects();
     oOleObject.checkDrawingBaseCoords();
-    this.selectObject(oOleObject, 0);
+    if(bSelect !== false) {
+        this.selectObject(oOleObject, 0);
+    }
     oOleObject.addToRecalculate();
     this.startRecalculate();
 };
 
-DrawingObjectsController.prototype.editOleObjectFromParams = function(oOleObject, sData, sImageUrl, nPixWidth, nPixHeight, bResize){
-    oOleObject.setData(sData);
-    var _blipFill           = new AscFormat.CBlipFill();
-    _blipFill.RasterImageId = sImageUrl;
-    oOleObject.setBlipFill(_blipFill);
-    oOleObject.setPixSizes(nPixWidth, nPixHeight);
+DrawingObjectsController.prototype.editOleObjectFromParams = function(oOleObject, sData, sImageUrl, fWidth, fHeight, nPixWidth, nPixHeight){
+    oOleObject.editExternal(sData, sImageUrl, fWidth, fHeight, nPixWidth, nPixHeight);
     this.startRecalculate();
 };
 
@@ -610,27 +613,28 @@ DrawingObjectsController.prototype.onKeyPress = function(e)
         Code = 0;//special char
 
     var bRetValue = false;
-    if ( Code > 0x20 )
+    if(this.checkSelectedObjectsProtectionText())
     {
-        var oApi = window["Asc"] && window["Asc"]["editor"];
-        var fCallback = function(){
-            this.paragraphAdd( new ParaText(Code), false );
+        return true;
+    }
+    if ( Code >= 0x20 )
+    {
+        var fCallback = function()
+        {
+            var oItem;
+            if(AscCommon.IsSpace(Code))
+            {
+                oItem = new ParaSpace(Code);
+            }
+            else
+            {
+                oItem = new ParaText(Code);
+            }
+            this.paragraphAdd(oItem, false);
             this.checkMobileCursorPosition();
             this.recalculateCurPos(true, true);
         };
         this.checkSelectedObjectsAndCallback(fCallback, [], false, AscDFH.historydescription_Spreadsheet_ParagraphAdd, undefined, window["Asc"]["editor"].collaborativeEditing.getFast());
-
-        bRetValue = true;
-    }
-    else if ( Code == 0x20 )
-    {
-        var oApi = window["Asc"] && window["Asc"]["editor"];
-        var fCallback = function(){
-            this.paragraphAdd(new ParaSpace());
-            this.checkMobileCursorPosition();
-            this.recalculateCurPos(true, true);
-        };
-        this.checkSelectedObjectsAndCallback(fCallback, [], false, AscDFH.historydescription_Spreadsheet_AddSpace, undefined, window["Asc"]["editor"].collaborativeEditing.getFast());
 
         bRetValue = true;
     }

@@ -694,6 +694,9 @@ g_oColorManager = new ColorManager();
 	function Fragment(val) {
 		this.text = null;
 		this.format = null;
+		//для отрисовки ввожу дополнительный массив
+		this.charCodes = null;//[]
+
 		if (null != val) {
 			this.set(val);
 		}
@@ -704,10 +707,13 @@ g_oColorManager = new ColorManager();
 	};
 	Fragment.prototype.set = function (oVal) {
 		if (null != oVal.text) {
-			this.text = oVal.text;
+			this.setFragmentText(oVal.text);
 		}
 		if (null != oVal.format) {
 			this.format = oVal.format;
+		}
+		if (null != oVal.charCodes) {
+			this.setCharCodes(oVal.charCodes && oVal.charCodes.slice());
 		}
 	};
 	Fragment.prototype.checkVisitedHyperlink = function (row, col, hyperlinkManager) {
@@ -720,6 +726,95 @@ g_oColorManager = new ColorManager();
 			}
 		}
 	};
+	Fragment.prototype.getCharCode = function (index) {
+		if (!this.isInitCharCodes()) {
+			this.initCharCodes();
+		}
+		return this.charCodes && this.charCodes[index];
+	};
+	Fragment.prototype.getCharCodesLength = function () {
+		if (!this.isInitCharCodes()) {
+			this.initCharCodes();
+		}
+		return this.charCodes ? this.charCodes.length : 0;
+	};
+	Fragment.prototype.initCharCodes = function () {
+		var test2 = this.getFragmentText();
+		if (test2) {
+			this.setCharCodes(AscCommon.convertUTF16toUnicode(test2), true);
+		} else {
+			this.setCharCodes([], true);
+		}
+	};
+	Fragment.prototype.initText = function () {
+		this.setFragmentText(this.charCodes ? AscCommon.convertUnicodeToUTF16(this.charCodes) : "", true);
+	};
+	Fragment.prototype.getCharCode = function (index) {
+		if (!this.isInitCharCodes()) {
+			this.initCharCodes();
+		}
+		return this.charCodes && this.charCodes[index];
+	};
+	Fragment.prototype.isInitCharCodes = function () {
+		return this.charCodes !== null;
+	};
+	Fragment.prototype.getCharCodes = function () {
+		if (!this.isInitCharCodes()) {
+			this.initCharCodes();
+		}
+		return this.charCodes;
+	};
+	Fragment.prototype.setCharCodes = function (val, isInit) {
+		//если выставляем charCodes, контент меняется, нужно занулять текстовое поле
+		if (!isInit) {
+			this.text = null;
+		}
+		this.charCodes = val;
+	};
+	Fragment.prototype.getFragmentText = function () {
+		if (null === this.text) {
+			this.initText();
+		}
+		return this.text;
+	};
+	Fragment.prototype.setFragmentText = function (val, isInit) {
+		//если выставляем текстовое поле, контент меняется, нужно занулять charCodes
+		if (!isInit) {
+			this.charCodes = null;
+		}
+		this.text = val;
+	};
+	Fragment.prototype.getTextFromCodes = function () {
+		//если выставляем текстовое поле, контент меняется, нужно занулять charCodes
+		if (!isInit) {
+			this.charCodes = null;
+		}
+		this.text = val;
+	};
+	Fragment.prototype.convertPositionToText = function (codePos) {
+		var diff = 0;
+		for (var i = 0; i < codePos; i++) {
+			if (this.charCodes[i] >= 0x10000) {
+				diff++;
+			}
+		}
+		return codePos + diff;
+	};
+	Fragment.prototype.convertPositionFromText = function (textPos) {
+		var count = 0;
+		for (var i = 0; i < textPos; i++) {
+			if (this.charCodes[i] >= 0x10000) {
+				count++;
+			} else {
+				count += 2;
+			}
+			if (count >= textPos) {
+				return i;
+			}
+		}
+		return textPos;
+	};
+
 
 var g_oFontProperties = {
 		fn: 0,
@@ -859,12 +954,12 @@ var g_oFontProperties = {
 		if (isTable) {
 			oRes.i = null !== font.i ? font.i : this.i;
 			oRes.s = null !== font.s ? font.s : this.s;
-			oRes.u = font.u || this.u;
+			oRes.u = null !== font.u ? font.u : this.u;
 			oRes.va = font.va || this.va;
 		} else {
 			oRes.i = null !== this.i ? this.i : font.i;
 			oRes.s = null !== this.s ? this.s : font.s;
-			oRes.u = this.u || font.u;
+			oRes.u = null !== this.u ? this.u : font.u;
 			oRes.va = this.va || font.va;
 		}
 		if (isTable) {
@@ -900,6 +995,9 @@ var g_oFontProperties = {
 	};
 	Font.prototype.isEqual2 = function (font) {
 		return font && this.getName() === font.getName() && this.getSize() === font.getSize() && this.getBold() === font.getBold() && this.getItalic() === font.getItalic();
+	};
+	Font.prototype.isNormalXfColor = function () {
+		return this.c && this.c.isEqual(g_StyleCache.normalXf.font.c);
 	};
 	Font.prototype.clone = function () {
 		var font = new Font();
@@ -938,6 +1036,41 @@ var g_oFontProperties = {
 			this.skip = oDefVal.skip;
 		}
 		if (this.repeat != oFont.repeat) {
+			this.repeat = oDefVal.repeat;
+		}
+	};
+	Font.prototype.subtractEqual = function (oFont, oDefVal) {
+		if (this.fn === oFont.fn) {
+			this.fn = oDefVal.fn;
+		}
+		if (this.scheme === oFont.scheme) {
+			this.scheme = oDefVal.scheme;
+		}
+		if (this.fs === oFont.fs) {
+			this.fs = oDefVal.fs;
+		}
+		if (this.b === oFont.b) {
+			this.b = oDefVal.b;
+		}
+		if (this.i === oFont.i) {
+			this.i = oDefVal.i;
+		}
+		if (this.u === oFont.u) {
+			this.u = oDefVal.u;
+		}
+		if (this.s === oFont.s) {
+			this.s = oDefVal.s;
+		}
+		if (g_oColorManager.isEqual(this.c, oFont.c)) {
+			this.c = oDefVal.c;
+		}
+		if (this.va === oFont.va) {
+			this.va = oDefVal.va;
+		}
+		if (this.skip === oFont.skip) {
+			this.skip = oDefVal.skip;
+		}
+		if (this.repeat === oFont.repeat) {
 			this.repeat = oDefVal.repeat;
 		}
 	};
@@ -1979,6 +2112,11 @@ var g_oFontProperties = {
 		this.patternFill = null;
 		this.gradientFill = value;
 	};
+	Fill.prototype.checkEmptyContent = function () {
+		if (!this.patternFill && !this.gradientFill) {
+			this.fromPatternParams(AscCommonExcel.c_oAscPatternType.None, null);
+		}
+	};
 
 	function FromXml_ST_BorderStyle(val) {
 		var res = -1;
@@ -2675,7 +2813,10 @@ var g_oBorderProperties = {
         align: 4,
         QuotePrefix: 5,
         XfId: 6,
-        PivotButton: 7
+        PivotButton: 7,
+		applyProtection: 8,
+		hidden: 9,
+		locked: 10
     };
 
     /** @constructor */
@@ -2688,6 +2829,10 @@ var g_oBorderProperties = {
         this.QuotePrefix = null;
         this.PivotButton = null;
         this.XfId = null;
+
+        this.applyProtection = null;
+        this.locked = null;
+        this.hidden = null;
 
         //inner
         this._hash;
@@ -2706,6 +2851,9 @@ var g_oBorderProperties = {
             this._hash += this.QuotePrefix + '|';
             this._hash += this.PivotButton + '|';
             this._hash += this.XfId + '|';
+            this._hash += this.applyProtection + '|';
+            this._hash += this.locked + '|';
+            this._hash += this.hidden + '|';
         }
         return this._hash;
     };
@@ -2732,6 +2880,9 @@ var g_oBorderProperties = {
         }
         return res;
     };
+	CellXfs.prototype.isNormalFont = function () {
+		return g_StyleCache.firstXf === this || g_StyleCache.normalXf.font === this.font;
+	};
     CellXfs.prototype.merge = function (xfs, isTable) {
         var xfIndexNumber = xfs.getIndexNumber();
         if (undefined === xfIndexNumber) {
@@ -2751,22 +2902,25 @@ var g_oBorderProperties = {
             } else {
                 cache.fill = this._mergeProperty(g_StyleCache.addFill, xfs.fill, this.fill);
             }
-            var isTableColor = true;
-            if (isTable && (g_StyleCache.firstXf === xfs || g_StyleCache.normalXf.font === xfs.font)) {
-                if (g_StyleCache.normalXf.font === xfs.font) {
-                    cache.font = this._mergeProperty(g_StyleCache.addFont, g_oDefaultFormat.Font, this.font, isTable, isTableColor);
-                } else {
-                    cache.font = this._mergeProperty(g_StyleCache.addFont, xfs.font, this.font, isTable, isTableColor);
-                }
-            } else {
-                isTableColor = isTable && xfs.font && xfs.font.c && xfs.font.c.isEqual(g_StyleCache.normalXf.font.c);
-                cache.font = this._mergeProperty(g_StyleCache.addFont, xfs.font, this.font, isTable, isTableColor);
-            }
+			var isTableColor = true;
+			if (isTable && xfs.isNormalFont()) {
+				if (g_StyleCache.normalXf.font === xfs.font) {
+					cache.font = this._mergeProperty(g_StyleCache.addFont, g_oDefaultFormat.Font, this.font, isTable, isTableColor);
+				} else {
+					cache.font = this._mergeProperty(g_StyleCache.addFont, xfs.font, this.font, isTable, isTableColor);
+				}
+			} else {
+				isTableColor = isTable && xfs.font && xfs.font.isNormalXfColor();
+				cache.font = this._mergeProperty(g_StyleCache.addFont, xfs.font, this.font, isTable, isTableColor);
+			}
             cache.num = this._mergeProperty(g_StyleCache.addNum, xfs.num, this.num);
             cache.align = this._mergeProperty(g_StyleCache.addAlign, xfs.align, this.align);
             cache.QuotePrefix = this._mergeProperty(null, xfs.QuotePrefix, this.QuotePrefix);
             cache.PivotButton = this._mergeProperty(null, xfs.PivotButton, this.PivotButton);
             cache.XfId = this._mergeProperty(null, xfs.XfId, this.XfId);
+            cache.applyProtection = this._mergeProperty(null, xfs.applyProtection, this.applyProtection);
+            cache.locked = this._mergeProperty(null, xfs.locked, this.locked);
+            cache.hidden = this._mergeProperty(null, xfs.hidden, this.hidden);
             cache = g_StyleCache.addXf(cache);
             this.setOperationCache("merge", xfIndexNumber, cache);
         }
@@ -2788,12 +2942,17 @@ var g_oBorderProperties = {
         res.QuotePrefix = this.QuotePrefix;
         res.PivotButton = this.PivotButton;
         res.XfId = this.XfId;
+        res.applyProtection = this.applyProtection;
+        res.locked = this.locked;
+        res.hidden = this.hidden;
+
         return res;
     };
     CellXfs.prototype.isEqual = function (xfs) {
-        return this.font === xfs.font && this.fill === xfs.fill && this.border === xfs.border && this.num === xfs.num &&
-            this.align === xfs.align && this.QuotePrefix === xfs.QuotePrefix && this.PivotButton === xfs.PivotButton &&
-            this.XfId === xfs.XfId;
+		return this.font === xfs.font && this.fill === xfs.fill && this.border === xfs.border && this.num === xfs.num &&
+			this.align === xfs.align && this.QuotePrefix === xfs.QuotePrefix && this.PivotButton === xfs.PivotButton &&
+			this.XfId === xfs.XfId && this.applyProtection === xfs.applyProtection && this.locked === xfs.locked &&
+			this.hidden === xfs.hidden;
     };
     CellXfs.prototype.getType = function () {
         return UndoRedoDataTypes.StyleXfs;
@@ -2819,6 +2978,12 @@ var g_oBorderProperties = {
                 return this.PivotButton;
             case this.Properties.XfId:
                 return this.XfId;
+            case this.Properties.applyProtection:
+                return this.applyProtection;
+            case this.Properties.locked:
+                return this.locked;
+            case this.Properties.hidden:
+                return this.hidden;
         }
     };
     CellXfs.prototype.setProperty = function (nType, value) {
@@ -2846,6 +3011,15 @@ var g_oBorderProperties = {
                 break;
             case this.Properties.XfId:
                 this.XfId = value;
+                break;
+            case this.Properties.applyProtection:
+                this.applyProtection = value;
+                break;
+            case this.Properties.locked:
+                this.locked = value;
+                break;
+            case this.Properties.hidden:
+                this.hidden = value;
                 break;
         }
     };
@@ -2919,6 +3093,24 @@ var g_oBorderProperties = {
     CellXfs.prototype.setQuotePrefix = function (val) {
         this.QuotePrefix = val;
     };
+	CellXfs.prototype.getApplyProtection = function () {
+		return this.applyProtection;
+	};
+	CellXfs.prototype.setApplyProtection = function (val) {
+		this.applyProtection = val;
+	};
+	CellXfs.prototype.getLocked = function () {
+		return this.locked;
+	};
+	CellXfs.prototype.setLocked = function (val) {
+		this.locked = val;
+	};
+	CellXfs.prototype.getHidden = function () {
+		return this.hidden;
+	};
+	CellXfs.prototype.setHidden = function (val) {
+		this.hidden = val;
+	};
     CellXfs.prototype.getPivotButton = function () {
         return this.PivotButton;
     };
@@ -3042,6 +3234,13 @@ var g_oBorderProperties = {
 
 		return res;
 	};
+	CellXfs.prototype.asc_getLocked = function () {
+		return this.locked === null || this.locked === true;
+	};
+	CellXfs.prototype.asc_getHidden = function () {
+		return this.hidden;
+	};
+
 	CellXfs.prototype.asc_setFillColor = function (val) {
 		//TODO не применяю цвета темы?
 		var fill = null;
@@ -3689,6 +3888,18 @@ StyleManager.prototype =
 	{
 		return this._setProperty(oItemWithXfs, val, "quotePrefix", CellXfs.prototype.getQuotePrefix, CellXfs.prototype.setQuotePrefix);
 	},
+	setApplyProtection : function(oItemWithXfs, val)
+	{
+		return this._setProperty(oItemWithXfs, val, "applyProtection", CellXfs.prototype.getApplyProtection, CellXfs.prototype.setApplyProtection);
+	},
+	setLocked : function(oItemWithXfs, val)
+	{
+		return this._setProperty(oItemWithXfs, val, "locked", CellXfs.prototype.getLocked, CellXfs.prototype.setLocked);
+	},
+	setHiddenFormulas : function(oItemWithXfs, val)
+	{
+		return this._setProperty(oItemWithXfs, val, "hidden", CellXfs.prototype.getHidden, CellXfs.prototype.setHidden);
+	},
 	setPivotButton : function(oItemWithXfs, val)
 	{
 		return this._setProperty(oItemWithXfs, val, "pivotButton", CellXfs.prototype.getPivotButton, CellXfs.prototype.setPivotButton);
@@ -3858,6 +4069,9 @@ StyleManager.prototype =
 };
 
 	function StyleCache() {
+		this.Clear();
+	}
+	StyleCache.prototype.Clear = function() {
 		this.fonts = {count: 0, vals: {}};
 		this.fills = {count: 0, vals: {}};
 		this.borders = {count: 0, vals: {}};
@@ -3870,8 +4084,7 @@ StyleManager.prototype =
 		this.secondFill = null;
 		this.firstBorder = null;
 		this.normalXf =  new CellXfs();
-	}
-
+	};
 	StyleCache.prototype.addFont = function(newFont) {
 		return this._add(this.fonts, newFont);
 	};
@@ -3946,7 +4159,8 @@ StyleManager.prototype =
 	/** @constructor */
 	function SheetMergedStyles() {
 		this.stylesTablePivot = [];
-		this.stylesConditional = [];
+		this.stylesConditional = {};
+		this.stylesConditionalIterator = null;
 	}
 
 	SheetMergedStyles.prototype.setTablePivotStyle = function(range, xf, stripe) {
@@ -3960,14 +4174,19 @@ StyleManager.prototype =
 			}
 		}
 	};
-	SheetMergedStyles.prototype.setConditionalStyle = function(multiplyRange, formula) {
-		this.stylesConditional.push({multiplyRange: multiplyRange, formula: formula});
+	SheetMergedStyles.prototype.setConditionalStyle = function(rule, ranges, formula) {
+		this.stylesConditionalIterator = null;
+		this.stylesConditional[rule.Get_Id()] = {ranges: ranges, formula: formula, rule: rule};
 	};
 	SheetMergedStyles.prototype.clearConditionalStyle = function(multiplyRange) {
-		for (var i = this.stylesConditional.length - 1; i >= 0; --i) {
-			var style = this.stylesConditional[i];
-			if (style.multiplyRange.isIntersect(multiplyRange)) {
-				this.stylesConditional.splice(i, 1);
+		this.stylesConditionalIterator = null;
+		for (var i in this.stylesConditional) {
+			if (this.stylesConditional.hasOwnProperty(i)) {
+				var style = this.stylesConditional[i];
+				var mr = new AscCommonExcel.MultiplyRange(style.ranges);
+				if (mr.isIntersect(multiplyRange)) {
+					delete this.stylesConditional[i];
+				}
 			}
 		}
 	};
@@ -3976,13 +4195,22 @@ StyleManager.prototype =
 		if (opt_ws) {
 			opt_ws._updateConditionalFormatting();
 		}
-		for (var i = 0; i < this.stylesConditional.length; ++i) {
-			var style = this.stylesConditional[i];
-			if (style.multiplyRange.contains(col, row)) {
-				var xf = style.formula(row, col);
-				if (xf) {
-					res.conditional.push(xf);
-				}
+		if (!this.stylesConditionalIterator) {
+			this.stylesConditionalIterator = new AscCommon.RangeTopBottomIterator();
+			//todo lose stylesConditional sorting
+			this.stylesConditionalIterator.init(Object.values(this.stylesConditional), function(elem) {
+				return elem.ranges;
+			});
+		}
+		var rules = this.stylesConditionalIterator.get(row, col);
+		//todo sort inside RangeTopBottomIterator ?
+		rules.sort(function(v1, v2) {
+			return v2.rule.priority - v1.rule.priority;
+		});
+		for (var i = 0; i < rules.length; ++i) {
+			var xf = rules[i].formula(row, col);
+			if (xf) {
+				res.conditional.push(xf);
 			}
 		}
 		for (var i = 0; i < this.stylesTablePivot.length; ++i) {
@@ -4335,6 +4563,9 @@ StyleManager.prototype =
 		return null == this.BestFit && null == this.hd && null == this.width && null == this.xfs &&
 			null == this.CustomWidth && 0 === this.outlineLevel && false == this.collapsed;
 	};
+	Col.prototype.isUpdateScroll = function () {
+		return null !== this.hd || null !== this.xfs || 0 !== this.outlineLevel || false !== this.collapsed;
+	};
 	Col.prototype.clone = function (oNewWs) {
 		if (!oNewWs) {
 			oNewWs = this.ws;
@@ -4587,6 +4818,27 @@ StyleManager.prototype =
 		if (History.Is_On() && oRes.oldVal != oRes.newVal) {
 			History.Add(AscCommonExcel.g_oUndoRedoCol, AscCH.historyitem_RowCol_Indent, this.ws.getId(),
 				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, false, oRes.oldVal, oRes.newVal));
+		}
+	};
+	Col.prototype.setApplyProtection = function (val) {
+		var oRes = this.ws.workbook.oStyleManager.setApplyProtection(this, val);
+		if (History.Is_On() && oRes.oldVal != oRes.newVal) {
+			History.Add(AscCommonExcel.g_oUndoRedoCol, AscCH.historyitem_RowCol_ApplyProtection, this.ws.getId(),
+				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, true, oRes.oldVal, oRes.newVal));
+		}
+	};
+	Col.prototype.setLocked = function (val) {
+		var oRes = this.ws.workbook.oStyleManager.setLocked(this, val);
+		if (History.Is_On() && oRes.oldVal != oRes.newVal) {
+			History.Add(AscCommonExcel.g_oUndoRedoCol, AscCH.historyitem_RowCol_Locked, this.ws.getId(),
+				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, true, oRes.oldVal, oRes.newVal));
+		}
+	};
+	Col.prototype.setHiddenFormulas = function (val) {
+		var oRes = this.ws.workbook.oStyleManager.setHiddenFormulas(this, val);
+		if (History.Is_On() && oRes.oldVal != oRes.newVal) {
+			History.Add(AscCommonExcel.g_oUndoRedoCol, AscCH.historyitem_RowCol_HiddenFormulas, this.ws.getId(),
+				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, true, oRes.oldVal, oRes.newVal));
 		}
 	};
 	Col.prototype.setHidden = function (val) {
@@ -4974,6 +5226,27 @@ StyleManager.prototype =
 				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, true, oRes.oldVal, oRes.newVal));
 		}
 	};
+	Row.prototype.setApplyProtection = function (val) {
+		var oRes = this.ws.workbook.oStyleManager.setApplyProtection(this, val);
+		if (History.Is_On() && oRes.oldVal != oRes.newVal) {
+			History.Add(AscCommonExcel.g_oUndoRedoRow, AscCH.historyitem_RowCol_ApplyProtection, this.ws.getId(),
+				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, true, oRes.oldVal, oRes.newVal));
+		}
+	};
+	Row.prototype.setLocked = function (val) {
+		var oRes = this.ws.workbook.oStyleManager.setLocked(this, val);
+		if (History.Is_On() && oRes.oldVal != oRes.newVal) {
+			History.Add(AscCommonExcel.g_oUndoRedoRow, AscCH.historyitem_RowCol_Locked, this.ws.getId(),
+				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, true, oRes.oldVal, oRes.newVal));
+		}
+	};
+	Row.prototype.setHiddenFormulas = function (val) {
+		var oRes = this.ws.workbook.oStyleManager.setHiddenFormulas(this, val);
+		if (History.Is_On() && oRes.oldVal != oRes.newVal) {
+			History.Add(AscCommonExcel.g_oUndoRedoRow, AscCH.historyitem_RowCol_HiddenFormulas, this.ws.getId(),
+				this._getUpdateRange(), new UndoRedoData_IndexSimpleProp(this.index, true, oRes.oldVal, oRes.newVal));
+		}
+	};
 	Row.prototype.setHidden = function (val, bViewLocalChange) {
 		var inViewAndFilter = this.ws.getActiveNamedSheetViewId() !== null && this.ws.autoFilters && this.ws.autoFilters.containInFilter(this.index);
 		if (!bViewLocalChange) {
@@ -5148,8 +5421,9 @@ StyleManager.prototype =
 		if (multiText) {
 			for (var i = 0, length = multiText.length; i < length; ++i) {
 				var elem = multiText[i];
-				if (null != elem.text && !(elem.format && elem.format.getSkip())) {
-					sRes += elem.text;
+				var text = elem.getFragmentText ? elem.getFragmentText() : elem.text;
+				if (null != text && !(elem.format && elem.format.getSkip())) {
+					sRes += text;
 				}
 			}
 		}
@@ -5160,11 +5434,12 @@ StyleManager.prototype =
 		if (multiText) {
 			for (var i = 0, length = multiText.length; i < length; ++i) {
 				var elem = multiText[i];
-				if (null != elem.text) {
+				var text = elem.getFragmentText ? elem.getFragmentText() : elem.text;
+				if (null != text) {
 					if(elem.format && elem.format.getSkip()) {
 						sRes += " ";
 					} else if(!(elem.format && elem.format.getRepeat())) {
-						sRes += elem.text;
+						sRes += text;
 					} else {
 						var j = 0;
 					}
@@ -6313,6 +6588,9 @@ function RangeDataManagerElem(bbox, data)
 		this.TableColumns = null;
 		this.TableStyleInfo = null;
 
+		this.QueryTable = null;
+		this.tableType = null;
+		
 		this.altText = null;
 		this.altTextSummary = null;
 
@@ -6347,6 +6625,12 @@ function RangeDataManagerElem(bbox, data)
 				res.result.push(this.result[i].clone());
 			}
 		}
+
+		if (this.QueryTable) {
+			res.QueryTable = this.QueryTable.clone();
+		}
+		res.tableType = this.tableType;
+
 		res.DisplayName = this.DisplayName;
 
 		res.altText = this.altText;
@@ -6463,6 +6747,12 @@ function RangeDataManagerElem(bbox, data)
 			var rangeTotal = autoFilters.worksheet.getRange3(this.Ref.r2, this.Ref.c1, this.Ref.r2, this.Ref.c2);
 			rangeTotal.cleanText()
 		}
+
+		if (this.QueryTable) {
+			this.cleanQueryTables();
+			//this.QueryTable.syncIndexes(this.TableColumns);
+		}
+
 		this.Ref = new Asc.Range(range.c1, range.r1, range.c2, range.r2);
 		//event
 		this.handlers.trigger("changeRefTablePart", this);
@@ -6521,6 +6811,12 @@ function RangeDataManagerElem(bbox, data)
 			var deleted = this.TableColumns.splice(startCol, diff);
 			this.removeDependencies(deleted);
 
+			if (this.QueryTable) {
+				this.cleanQueryTables();
+				//this.QueryTable.deleteTableColumns(deleted);
+				//this.QueryTable.syncIndexes(this.TableColumns);
+			}
+
 			//todo undo
 			var deletedMap = {};
 			for (var i = 0; i < deleted.length; ++i) {
@@ -6562,6 +6858,11 @@ function RangeDataManagerElem(bbox, data)
 
 		this.TableColumns = newTableColumns;
 
+		if (this.QueryTable) {
+			this.cleanQueryTables();
+			//this.QueryTable.syncIndexes(this.TableColumns);
+		}
+
 		/*if(this.SortState && this.SortState.SortConditions && this.SortState.SortConditions[0])
 		 {
 		 var SortConditions = this.SortState.SortConditions[0];
@@ -6587,6 +6888,10 @@ function RangeDataManagerElem(bbox, data)
 		newTableColumns[newTableColumns.length - 1].Name = autoFilters._generateColumnName2(newTableColumns);
 
 		this.TableColumns = newTableColumns;
+		if (this.QueryTable) {
+			this.cleanQueryTables();
+			//this.QueryTable.syncIndexes(this.TableColumns);
+		}
 		this.buildDependencies();
 	};
 
@@ -6878,6 +7183,21 @@ function RangeDataManagerElem(bbox, data)
 			}
 		}
 	};
+	TablePart.prototype.cleanQueryTables = function () {
+		//удаляю инфомарцию об queryTables после удаления/добавления колонки таблицы
+		//связано это с тем, что необходимо следить за всеми полями из queryTables + синхронизировать их с tableColumns,
+		//+ есть нюанс - id колонок таблиц сейчас записывается в x2t по порядку в массиве. queryTables связаны с id таблиц
+		//необходимо перейти на генерацию id в js и следить за id
+		//+ записывать в историю, обрабатывать undo/redo
+		//поля, которые попадают в список удаленных, необходимо при undo вовращать с прежними индексами и айдишниками
+		//TODO в следующих версиях необходимо реализовать данный функционал в полном объеме
+		this.QueryTable = null;
+		this.tableType = null;
+		for(var i = 0; i < this.TableColumns.length; i++) {
+			this.TableColumns[i].queryTableFieldId = null;
+			this.TableColumns[i].uniqueName = null;
+		}
+	};
 
 	TablePart.prototype.getColIdByName = function(name) {
 		for (var i = 0; i < this.TableColumns.length; i++) {
@@ -6887,6 +7207,16 @@ function RangeDataManagerElem(bbox, data)
 		}
 		return null;
 	};
+
+	TablePart.prototype.getIndexTableColumnById = function(id) {
+		for (var i = 0; i < this.TableColumns.length; i++) {
+			if (id === this.TableColumns[i].id) {
+				return i + 1;
+			}
+		}
+		return null;
+	};
+
 
 	/** @constructor */
 	function AutoFilter() {
@@ -7152,6 +7482,9 @@ function RangeDataManagerElem(bbox, data)
 				if (colId !== cellId) {
 					var cell = worksheet.getCell3(row, colId + col);
 					var isDateTimeFormat = cell.getType() === window["AscCommon"].CellValueType.Number && cell.getNumFormat().isDateTimeFormat();
+					if (isDateTimeFormat) {
+						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
+					}
 
 					var isNumberFilter = filterColumn.isApplyCustomFilter();
 					var val = (isDateTimeFormat || isNumberFilter) ? cell.getValueWithoutFormat() : cell.getValueWithFormat();
@@ -7195,6 +7528,10 @@ function RangeDataManagerElem(bbox, data)
 					var isNumberFilter = false;
 					if (newFilterColumn.CustomFiltersObj || newFilterColumn.Top10 || newFilterColumn.DynamicFilter) {
 						isNumberFilter = true;
+					}
+
+					if (isDateTimeFormat) {
+						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
 					}
 
 					var currentValue = (isDateTimeFormat || isNumberFilter) ? cell.getValueWithoutFormat() : cell.getValueWithFormat();
@@ -7552,7 +7889,7 @@ function RangeDataManagerElem(bbox, data)
 		this.CalculatedColumnFormula = null;
 
 		//формируется на сохранения
-		//this.queryTableFieldId = null;
+		this.queryTableFieldId = null;
 		this.uniqueName = null;
 
 		//queryTableField
@@ -7561,6 +7898,8 @@ function RangeDataManagerElem(bbox, data)
 		this.fillFormulas = null;
 		this.queryName = null;
 		this.rowNumbers = null;
+
+		this.id = null;
 		//формируется на сохранения
 		//this.tableColumnId = null;
 	}
@@ -7610,6 +7949,11 @@ function RangeDataManagerElem(bbox, data)
 		res.fillFormulas = this.fillFormulas;
 		res.queryName = this.queryName;
 		res.rowNumbers = this.rowNumbers;
+
+		res.queryTableFieldId = this.queryTableFieldId;
+		res.uniqueName = this.uniqueName;
+
+		res.id = this.id;
 
 		return res;
 	};
@@ -9949,6 +10293,219 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	this.dateTimeGrouping = oDateGroupItem.DateTimeGrouping;
 };
 
+/** @constructor */
+function QueryTable() {
+	this.queryTableRefresh = null;
+
+	this.adjustColumnWidth = null;
+	this.applyAlignmentFormats = null;
+	this.applyBorderFormats = null;
+	this.applyFontFormats = null;
+	this.applyNumberFormats = null;
+	this.applyPatternFormats = null;
+	this.applyWidthHeightFormats = null;
+	this.autoFormatId = null;
+	this.backgroundRefresh = null;
+
+	this.connectionId = null;
+	this.disableEdit = null;
+	this.disableRefresh = null;
+	this.fillFormulas = null;
+	this.firstBackgroundRefresh = null;
+	this.growShrinkType = null;
+	this.headers = null;
+	this.intermediate = null;
+	this.name = null;
+	this.preserveFormatting = null;
+	this.refreshOnLoad = null;
+	this.removeDataOnSave = null;
+	this.rowNumbers = null;
+}
+QueryTable.prototype.clone = function() {
+	var res = new QueryTable();
+
+	res.queryTableRefresh = this.queryTableRefresh ? this.queryTableRefresh : null;
+
+	res.adjustColumnWidth = this.adjustColumnWidth;
+	res.applyAlignmentFormats = this.applyAlignmentFormats;
+	res.applyBorderFormats = this.applyBorderFormats;
+	res.applyFontFormats = this.applyFontFormats;
+	res.applyNumberFormats = this.applyNumberFormats;
+	res.applyPatternFormats = this.applyPatternFormats;
+	res.applyWidthHeightFormats = this.applyWidthHeightFormats;
+	res.autoFormatId = this.autoFormatId;
+	res.backgroundRefresh = this.backgroundRefresh;
+
+	res.connectionId = this.connectionId;
+	res.disableEdit = this.disableEdit;
+	res.disableRefresh = this.disableRefresh;
+	res.fillFormulas = this.fillFormulas;
+	res.firstBackgroundRefresh = this.firstBackgroundRefresh;
+	res.growShrinkType = this.growShrinkType;
+	res.headers = this.headers;
+	res.intermediate = this.intermediate;
+	res.name = this.name;
+	res.preserveFormatting = this.preserveFormatting;
+	res.refreshOnLoad = this.refreshOnLoad;
+	res.removeDataOnSave = this.removeDataOnSave;
+	res.rowNumbers = this.rowNumbers;
+
+	return res;
+};
+
+QueryTable.prototype.deleteTableColumns = function(deletedTableColumns) {
+	if (!deletedTableColumns) {
+		return;
+	}
+
+	if (this.queryTableRefresh) {
+		this.queryTableRefresh.deleteTableColumns(deletedTableColumns);
+	}
+};
+QueryTable.prototype.syncIndexes = function(tableColumns) {
+	//при удалении приходится меняться tableColumnId, поскольку id  у колонок таблиц у нас формируются на сохранение
+	//а соотсетствие именно по id tableColumn
+
+	if (this.queryTableRefresh) {
+		this.queryTableRefresh.syncIndexes(tableColumns);
+	}
+};
+
+
+
+/** @constructor */
+function QueryTableRefresh() {
+	this.queryTableDeletedFields = null;
+	this.queryTableFields = null;
+	this.sortState = null;
+
+	this.fieldIdWrapped = null;
+	this.headersInLastRefr = null;
+	this.minimumVersion = null;
+	this.nextId = null;
+	this.preserveSortFilterLayout = null;
+	this.unboundColumnsLeft = null;
+	this.unboundColumnsRight = null;
+}
+QueryTableRefresh.prototype.clone = function() {
+	var res = new QueryTableRefresh();
+
+	res.queryTableDeletedFields = this.queryTableDeletedFields ? this.queryTableDeletedFields.clone() : null;
+	res.queryTableFields = this.queryTableFields ? this.queryTableFields.clone() : null;
+	res.sortState = this.sortState ? this.sortState.clone() : null;
+
+	res.fieldIdWrapped = this.fieldIdWrapped;
+	res.headersInLastRefr = this.headersInLastRefr;
+	res.minimumVersion = this.minimumVersion;
+	res.nextId = this.nextId;
+	res.preserveSortFilterLayout = this.preserveSortFilterLayout;
+	res.unboundColumnsLeft = this.unboundColumnsLeft;
+	res.unboundColumnsRight = this.unboundColumnsRight;
+
+	return res;
+};
+QueryTableRefresh.prototype.deleteTableColumns = function(deletedTableColumns) {
+	if (!deletedTableColumns) {
+		return;
+	}
+
+	if (this.queryTableFields) {
+		for (var i = 0; i < deletedTableColumns.length; i++) {
+			for (var j = 0; j < this.queryTableFields.length; j++) {
+				if (deletedTableColumns[i].queryTableFieldId === this.queryTableFields[j].tableColumnId) {
+					var deletedField = this.queryTableFields.splice(j, 1);
+					this.addDeletedField(deletedField[0]);
+				}
+			}
+		}
+	}
+};
+QueryTableRefresh.prototype.addDeletedField = function(deletedField) {
+	if (!this.queryTableDeletedFields) {
+		this.queryTableDeletedFields = [];
+	}
+	var newDeletedField = new QueryTableDeletedField();
+	newDeletedField.name = deletedField.name;
+	this.queryTableDeletedFields.push(newDeletedField);
+};
+QueryTableRefresh.prototype.syncIndexes = function(tableColumns) {
+	//при удалении приходится меняться tableColumnId, поскольку id  у колонок таблиц у нас формируются на сохранение
+	//а соотсетствие именно по id tableColumn
+
+	if (this.queryTableFields) {
+		for (var i = 0; i < tableColumns.length; i++) {
+			for (var j = 0; j < this.queryTableFields.length; j++) {
+				if (tableColumns[i].queryTableFieldId === this.queryTableFields[j].tableColumnId) {
+					this.queryTableFields[j].tableColumnId = i + 1;
+				}
+			}
+		}
+	}
+};
+QueryTableRefresh.prototype.syncIndexes2 = function(tableColumns) {
+	//при удалении приходится меняться tableColumnId, поскольку id  у колонок таблиц у нас формируются на сохранение
+	//а соотсетствие именно по id tableColumn
+
+	if (this.queryTableFields) {
+		var i;
+		var changeQueryTableFieldId = [];
+		for (var j = 0; j < this.queryTableFields.length; j++) {
+			for (i = 0; i < tableColumns.length; i++) {
+				if (tableColumns[i].queryTableFieldId === this.queryTableFields[j].tableColumnId) {
+					this.queryTableFields[j].tableColumnId = i + 1;
+					this.queryTableFields[j].id = i + 1;
+					changeQueryTableFieldId[i] =  i + 1;
+					break;
+				}
+			}
+		}
+		for (i = 0; i < changeQueryTableFieldId.length; i++) {
+			tableColumns[i].queryTableFieldId = changeQueryTableFieldId[i];
+			if (null !== tableColumns[i].uniqueName) {
+				tableColumns[i].uniqueName = changeQueryTableFieldId[i];
+			}
+		}
+	}
+
+};
+
+
+/** @constructor */
+function QueryTableField() {
+	this.name = null;
+	this.id = null;
+	this.tableColumnId = null;
+
+	this.rowNumbers = null;
+	this.fillFormulas = null;
+	this.dataBound = null;
+	this.clipped = null;
+}
+QueryTableField.prototype.clone = function() {
+	var res = new QueryTableField();
+
+	res.name = this.name;
+	res.id = this.id;
+	res.tableColumnId = this.tableColumnId;
+	res.rowNumbers = this.rowNumbers;
+	res.fillFormulas = this.fillFormulas;
+	res.dataBound = this.dataBound;
+	res.clipped = this.clipped;
+
+	return res;
+};
+
+/** @constructor */
+function QueryTableDeletedField() {
+	this.name = null;
+}
+QueryTableField.prototype.clone = function() {
+	var res = new QueryTableDeletedField();
+	res.name = this.name;
+	return res;
+};
+
+
 	if (typeof Map === 'undefined') {
 		(function() {
 			var Map = function() {
@@ -10216,6 +10773,10 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		this.verticalDpi = 600;
 		this.paperUnits = 0;
 
+		//для превью передаём из интерфейса
+		this.headerFooter = null;
+		this.printArea = null;
+
 		this.ws = ws;
 
 		return this;
@@ -10360,6 +10921,17 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		}
 	};
 
+	asc_CPageSetup.prototype.getPreviewHeaderFooter = function () {
+		var res = null;
+		if (this.headerFooter) {
+			res = new CHeaderFooter();
+			var tempEditor = new AscCommonExcel.CHeaderFooterEditor();
+			tempEditor.setPropsFromInterface(this.headerFooter, true);
+			tempEditor._saveToModel(this, res);
+		}
+		return res;
+	};
+
 	/** @constructor */
 	//этот объект используется как в модели, так и в меню для передачи измененных опций page layout
 	//если определена ws - это означает, что этот объект лежит в модели и при изменении его свойств идёт запись в историю
@@ -10384,6 +10956,113 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 			this.gridLines = c_oAscPrintDefaultSettings.PageGridLines;
 		if (null == this.headings)
 			this.headings = c_oAscPrintDefaultSettings.PageHeadings;
+	};
+	asc_CPageOptions.prototype.getJson = function (ws) {
+		var res = {};
+
+		res["gridLines"] = this.gridLines;
+		res["headings"] = this.headings;
+		res["pageMargins"] = {};
+		res["pageMargins"]["bottom"] = this.pageMargins.bottom;
+		res["pageMargins"]["footer"] = this.pageMargins.footer;
+		res["pageMargins"]["header"] = this.pageMargins.header;
+		res["pageMargins"]["left"] = this.pageMargins.left;
+		res["pageMargins"]["right"] = this.pageMargins.right;
+		res["pageMargins"]["top"] = this.pageMargins.top;
+
+
+		res["pageSetup"] = {};
+		res["pageSetup"]["blackAndWhite"] = this.pageSetup.blackAndWhite;
+		res["pageSetup"]["cellComments"] = this.pageSetup.cellComments;
+		res["pageSetup"]["copies"] = this.pageSetup.copies;
+		res["pageSetup"]["draft"] = this.pageSetup.draft;
+		res["pageSetup"]["errors"] = this.pageSetup.errors;
+		res["pageSetup"]["firstPageNumber"] = this.pageSetup.firstPageNumber;
+		res["pageSetup"]["fitToHeight"] = this.pageSetup.fitToHeight;
+		res["pageSetup"]["fitToWidth"] = this.pageSetup.fitToWidth;
+		res["pageSetup"]["headerFooter"] = this.pageSetup.headerFooter;
+		res["pageSetup"]["height"] = this.pageSetup.height;
+		res["pageSetup"]["horizontalDpi"] = this.pageSetup.horizontalDpi;
+		res["pageSetup"]["orientation"] = this.pageSetup.orientation;
+		res["pageSetup"]["pageOrder"] = this.pageSetup.pageOrder;
+		res["pageSetup"]["paperUnits"] = this.pageSetup.paperUnits;
+		res["pageSetup"]["printArea"] = this.pageSetup.printArea;
+		res["pageSetup"]["scale"] = this.pageSetup.scale;
+		res["pageSetup"]["useFirstPageNumber"] = this.pageSetup.useFirstPageNumber;
+		res["pageSetup"]["usePrinterDefaults"] = this.pageSetup.usePrinterDefaults;
+		res["pageSetup"]["verticalDpi"] = this.pageSetup.verticalDpi;
+		res["pageSetup"]["width"] = this.pageSetup.width;
+
+		if (ws.headerFooter) {
+			res["pageSetup"]["headerFooter"] = {};
+			res["pageSetup"]["headerFooter"]["alignWithMargins"] = ws.headerFooter.alignWithMargins;
+			res["pageSetup"]["headerFooter"]["differentFirst"] = ws.headerFooter.differentFirst;
+			res["pageSetup"]["headerFooter"]["differentOddEven"] = ws.headerFooter.differentOddEven;
+			res["pageSetup"]["headerFooter"]["evenFooter"] = ws.headerFooter.evenFooter && ws.headerFooter.evenFooter.getStr();
+			res["pageSetup"]["headerFooter"]["evenHeader"] = ws.headerFooter.evenHeader && ws.headerFooter.evenHeader.getStr();
+			res["pageSetup"]["headerFooter"]["firstFooter"] = ws.headerFooter.firstFooter && ws.headerFooter.firstFooter.getStr();
+			res["pageSetup"]["headerFooter"]["firstHeader"] = ws.headerFooter.firstHeader && ws.headerFooter.firstHeader.getStr();
+			res["pageSetup"]["headerFooter"]["oddFooter"] = ws.headerFooter.oddFooter && ws.headerFooter.oddFooter.getStr();
+			res["pageSetup"]["headerFooter"]["oddHeader"] = ws.headerFooter.oddHeader && ws.headerFooter.oddHeader.getStr();
+			res["pageSetup"]["headerFooter"]["scaleWithDoc"] = ws.headerFooter.scaleWithDoc;
+		}
+
+		res["printTitlesHeight"] = this.printTitlesHeight;
+		res["printTitlesWidth"] = this.printTitlesWidth;
+
+		return res;
+	};
+	asc_CPageOptions.prototype.setJson = function (props) {
+		this.gridLines = props["gridLines"];
+		this.headings = props["headings"];
+
+		this.pageMargins.bottom = props["pageMargins"]["bottom"];
+		this.pageMargins.footer = props["pageMargins"]["footer"];
+		this.pageMargins.header = props["pageMargins"]["header"];
+		this.pageMargins.left = props["pageMargins"]["left"];
+		this.pageMargins.right = props["pageMargins"]["right"];
+		this.pageMargins.top = props["pageMargins"]["top"];
+		this.pageMargins.bottom = props["pageMargins"]["bottom"];
+
+		this.pageSetup.blackAndWhite = props["pageSetup"]["blackAndWhite"];
+		this.pageSetup.cellComments = props["pageSetup"]["cellComments"];
+		this.pageSetup.copies = props["pageSetup"]["copies"];
+		this.pageSetup.draft = props["pageSetup"]["draft"];
+		this.pageSetup.errors = props["pageSetup"]["errors"];
+		this.pageSetup.firstPageNumber = props["pageSetup"]["firstPageNumber"];
+		this.pageSetup.fitToHeight = props["pageSetup"]["fitToHeight"];
+		this.pageSetup.fitToWidth = props["pageSetup"]["fitToWidth"];
+		this.pageSetup.headerFooter = props["pageSetup"]["headerFooter"];
+		this.pageSetup.height = props["pageSetup"]["height"];
+		this.pageSetup.horizontalDpi = props["pageSetup"]["horizontalDpi"];
+		this.pageSetup.orientation = props["pageSetup"]["orientation"];
+		this.pageSetup.pageOrder = props["pageSetup"]["pageOrder"];
+		this.pageSetup.paperUnits = props["pageSetup"]["paperUnits"];
+		this.pageSetup.printArea = props["pageSetup"]["printArea"];
+		this.pageSetup.scale = props["pageSetup"]["scale"];
+		this.pageSetup.useFirstPageNumber = props["pageSetup"]["useFirstPageNumber"];
+		this.pageSetup.usePrinterDefaults = props["pageSetup"]["usePrinterDefaults"];
+		this.pageSetup.verticalDpi = props["pageSetup"]["verticalDpi"];
+		this.pageSetup.width = props["pageSetup"]["width"];
+
+		this.pageSetup.headerFooter = props["pageSetup"]["headerFooter"];
+		/*if (ws.headerFooter) {
+			res["pageSetup"]["headerFooter"] = {
+				"alignWithMargins": ws.headerFooter.alignWithMargins,
+				"differentFirst": ws.headerFooter.differentFirst,
+				"differentOddEven": ws.headerFooter.differentOddEven,
+				"evenFooter": ws.headerFooter.evenFooter && ws.headerFooter.evenFooter.getStr(),
+				"evenHeader": ws.headerFooter.evenHeader && ws.headerFooter.evenHeader.getStr(),
+				"firstFooter": ws.headerFooter.firstFooter && ws.headerFooter.firstFooter.getStr(),
+				"firstHeader": ws.headerFooter.firstHeader && ws.headerFooter.firstHeader.getStr(),
+				"oddFooter": ws.headerFooter.oddFooter && ws.headerFooter.oddFooter.getStr(),
+				"oddHeader": ws.headerFooter.oddHeader && ws.headerFooter.oddHeader.getStr(),
+				"scaleWithDoc": ws.headerFooter.scaleWithDoc
+			};
+		}*/
+
+		this.printTitlesHeight = props["printTitlesHeight"];
+		this.printTitlesWidth = props["printTitlesWidth"];
 	};
 	asc_CPageOptions.prototype.initPrintTitles = function () {
 		//функция добавлена только для того, чтобы в интерфейс передать текущие заголовки печати, которые хранятся как именованный диапазон
@@ -10719,6 +11398,15 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		}
 	};
 
+	CHeaderFooter.prototype.clean = function() {
+		this.setFirstHeader(null);
+		this.setOddHeader(null);
+		this.setEvenHeader(null);
+		this.setFirstFooter(null);
+		this.setOddFooter(null);
+		this.setEvenFooter(null);
+	};
+
 	CHeaderFooter.prototype.init = function () {
 		if(this.evenFooter) {
 			this.evenFooter.parse();
@@ -10759,6 +11447,56 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 			this.oddHeader.getAllFonts(oFontMap);
 		}
 	};
+	CHeaderFooter.prototype.getForInterface = function () {
+		var res = null;
+		var tempEditor = new AscCommonExcel.CHeaderFooterEditor();
+		tempEditor._createAndDrawSections(Asc.c_oAscHeaderFooterType.first, null, this);
+		tempEditor._createAndDrawSections(Asc.c_oAscHeaderFooterType.odd, null, this);
+		tempEditor._createAndDrawSections(Asc.c_oAscHeaderFooterType.even, null, this);
+		tempEditor.alignWithMargins = this.alignWithMargins;
+		tempEditor.differentFirst = this.differentFirst;
+		tempEditor.differentOddEven = this.differentOddEven;
+		tempEditor.scaleWithDoc = this.scaleWithDoc;
+
+		res = tempEditor.getPropsToInterface();
+
+		return res;
+	};
+	CHeaderFooter.prototype.initFromJson = function (val) {
+		this.alignWithMargins = val["alignWithMargins"];
+		this.differentFirst = val["differentFirst"];
+		this.differentOddEven = val["differentOddEven"];
+
+		this.scaleWithDoc = val["scaleWithDoc"];
+
+		if (val["evenFooter"]) {
+			this.evenFooter = new CHeaderFooterData();
+			this.evenFooter.setStr(val["evenFooter"]);
+		}
+		if (val["evenHeader"]) {
+			this.evenHeader = new CHeaderFooterData();
+			this.evenHeader.setStr(val["evenHeader"]);
+		}
+		if (val["firstFooter"]) {
+			this.firstFooter = new CHeaderFooterData();
+			this.firstFooter.setStr(val["firstFooter"]);
+		}
+		if (val["firstHeader"]) {
+			this.firstHeader = new CHeaderFooterData();
+			this.firstHeader.setStr(val["firstHeader"]);
+		}
+		if (val["oddFooter"]) {
+			this.oddFooter = new CHeaderFooterData();
+			this.oddFooter.setStr(val["oddFooter"]);
+		}
+		if (val["oddHeader"]) {
+			this.oddHeader = new CHeaderFooterData();
+			this.oddHeader.setStr(val["oddHeader"]);
+		}
+
+		this.init();
+	};
+
 
 	function CHeaderFooterData(str) {
 		this.str = str;
@@ -11174,6 +11912,243 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 		return this.name;
 	};
 
+	function CPrintPreviewState(wb) {
+		this.ctx = null;
+		this.pages = null;
+
+		//отслеживаем активную страницу и активный лист
+		this.activePage = null;
+		this.activeSheet = null;
+		this.sheetsProps = null;
+
+		this.start = null;
+
+		//зум для масштабирования страницы и зум печати
+		this.pageZoom = null;
+		this.printZoom = null;
+
+		this.wb = wb;
+		//после закрытия окна предварительной печати возвращаем зум и актиный лист
+		this.realZoom = null;
+		this.realActiveSheet = null;
+
+		this.pixelRatio = null;
+
+		this.advancedOptions = null;
+
+		//избегаем повторных вызовов, пересмотреть
+		this.isDrawPrintPreview = null;
+		//избегаем повторного отображения ошибки(максимальное количество страниц)
+		this.maxPagesCount = null;
+
+		//опции измененного листа пока не мержу с теми, что в модели. перезатираю полностью. если будет необходимость - _pageOptionsMap использовать и при сохранении проверять что изменилось
+		//при закрытии окна с сохранением вычисляем только измененные настройки, для этого храним те настройки, которые были до открытия
+		//this._pageOptionsMap = null;
+
+		return this;
+	}
+
+	CPrintPreviewState.prototype.init = function () {
+		this.start = true;
+		/*var api = window["Asc"]["editor"];
+		this._pageOptionsMap = {};
+		for (var i = 0, length = this.wb.model.getWorksheetCount(); i < length; ++i) {
+			var wsModel = this.wb.model.getWorksheet(i);
+			var wsIndex = wsModel.getIndex();
+			var pageOptions = api.asc_getPageOptions(wsIndex, true);
+			if (pageOptions) {
+				this._pageOptionsMap[wsIndex] = pageOptions.clone();
+			}
+		}*/
+	};
+	CPrintPreviewState.prototype.isStart = function () {
+		return this.start;
+	};
+	CPrintPreviewState.prototype.setCtx = function (val) {
+		this.ctx = val;
+	};
+	CPrintPreviewState.prototype.setPages = function (val) {
+		this.pages = val;
+	};
+	CPrintPreviewState.prototype.getCtx = function () {
+		return this.ctx;
+	};
+	CPrintPreviewState.prototype.getPages = function () {
+		return this.pages;
+	};
+	CPrintPreviewState.prototype.getPage = function (index) {
+		return this.pages && this.pages.arrPages[index];
+	};
+	CPrintPreviewState.prototype.isNeedShowError = function (bMoreThenMax) {
+		var res = bMoreThenMax;
+
+		if (this.isStart()) {
+			if (bMoreThenMax) {
+				if (!this.maxPagesCount) {
+					this.maxPagesCount = true;
+				} else {
+					res = false;
+				}
+			} else {
+				this.maxPagesCount = null;
+			}
+		}
+
+		return res;
+	};
+	CPrintPreviewState.prototype.clean = function (revertZoom) {
+		//this.ctx = null;
+		this.pages = null;
+		this.activePage = null;
+		this.activeSheet = null;
+		this.start = null;
+
+		if (revertZoom) {
+			if (null != this.realActiveSheet) {
+				this.wb.model.setActive(this.realActiveSheet);
+			}
+			if (null != this.realZoom) {
+				this.wb.changeZoom(this.realZoom, true);
+			}
+		}
+		this.realActiveSheet = null;
+		this.realZoom = null;
+		this._pageOptionsMap = null;
+
+		this.advancedOptions = null;
+		this.maxPagesCount = null;
+	};
+	CPrintPreviewState.prototype.getPagesLength = function () {
+		return this.pages && this.pages.arrPages.length;
+	};
+	CPrintPreviewState.prototype.getIndexPageByIndexSheet = function (indexSheet) {
+		if (this.pages && this.pages.arrPages.length) {
+			for (var i = 0; i < this.pages.arrPages.length; i++) {
+				if (indexSheet === this.pages.arrPages[i].indexWorksheet) {
+					return i;
+				}
+			}
+		}
+		return null;
+	};
+	CPrintPreviewState.prototype.setPage = function (index, checkZoom) {
+		this.activePage = index;
+		var page = this.getPage(this.activePage);
+		var newIndexSheet = page && page.indexWorksheet;
+		var needUpdateActiveSheet;
+		if (newIndexSheet !== this.activeSheet) {
+			this.activeSheet = newIndexSheet;
+			needUpdateActiveSheet = true;
+		}
+		if (checkZoom) {
+			this.checkZoom(needUpdateActiveSheet);
+		}
+	};
+	CPrintPreviewState.prototype.checkZoom = function (needUpdateActiveSheet) {
+		if (null === this.realZoom) {
+			this.realZoom = this.wb.getZoom();
+		}
+		if (null === this.realActiveSheet) {
+			this.realActiveSheet = this.wb.model.getActive();
+		}
+
+		var isChangeSystemZoom = this.pixelRatio !== null && this.pixelRatio !== AscCommon.AscBrowser.retinaPixelRatio;
+
+		var page = this.getPage(this.activePage);
+		var pageWidth = page && page.pageWidth ? page.pageWidth : AscCommon.c_oAscPrintDefaultSettings.PageWidth;
+		var pageHeight = page && page.pageHeight ? page.pageHeight : AscCommon.c_oAscPrintDefaultSettings.PageHeight;
+
+		var canvasTopPadding = 24;
+		var ppiX = AscCommon.AscBrowser.convertToRetinaValue(96, true);
+		var height = Math.floor(pageHeight * Asc.getCvtRatio(3/*mm*/, 0/*px*/, ppiX));
+		var width = Math.floor(pageWidth * Asc.getCvtRatio(3/*mm*/, 0/*px*/, ppiX));
+		var canvasHeight = this.ctx.canvas.parentElement.clientHeight;
+		var canvasWidth = this.ctx.canvas.parentElement.clientWidth;
+
+		var kF = 1;
+		if (height > canvasHeight) {
+			kF = canvasHeight / height;
+		}
+		if (width * kF > canvasWidth) {
+			kF = canvasWidth / width;
+		}
+
+		kF *= (height * kF) / (height * kF + canvasTopPadding)
+
+		var isChangeForZoom;
+		var trueZoom = kF * AscCommon.AscBrowser.retinaPixelRatio;
+		var _height = Math.floor(height * kF);
+		var _width = Math.floor(width * kF);
+		if (trueZoom !== this.pageZoom) {
+			this.pageZoom = trueZoom;
+			this.ctx.canvas.style.height = _height + 2 + "px";
+			this.ctx.canvas.style.width = _width + 2 + "px";
+			this.ctx.canvas.height = AscCommon.AscBrowser.convertToRetinaValue(_height, true);
+			this.ctx.canvas.width = AscCommon.AscBrowser.convertToRetinaValue(_width, true);
+			isChangeForZoom = true;
+		}
+		this.ctx.canvas.style.marginLeft = canvasWidth/2 - _width / 2 + "px";
+		this.ctx.canvas.style.marginTop = canvasHeight/2 - _height / 2 + canvasTopPadding * kF + "px";
+
+
+		kF = trueZoom;
+		if (!page || page.scale !== this.printZoom) {
+			this.printZoom = page ? page.scale : 1;
+			this.pageZoom = kF;
+			isChangeForZoom = true;
+		}
+
+		if (isChangeForZoom || needUpdateActiveSheet) {
+			//change zoom on default
+			if (needUpdateActiveSheet) {
+				this.wb.model.setActive(this.activeSheet);
+			}
+			this.wb.changeZoom(this.pageZoom * this.printZoom, true);
+			if (isChangeSystemZoom) {
+				this.ctx.changeZoom(null);
+			}
+			this.ctx.changeZoom(this.pageZoom* this.printZoom);
+		}
+		var oGraphics = new AscCommon.CGraphics();
+		var nWidth = this.ctx.getWidth(0);
+		var nHeight = this.ctx.getHeight(0);
+		var dWidth = this.ctx.getWidth(3);
+		var dHeight = this.ctx.getHeight(3);
+		oGraphics.init(this.ctx.canvas.getContext('2d'), nWidth, nHeight, dWidth, dHeight);
+		oGraphics.m_oFontManager = AscCommon.g_fontManager;
+		this.ctx.DocumentRenderer = oGraphics;
+		this.pixelRatio = AscCommon.AscBrowser.retinaPixelRatio;
+	};
+	CPrintPreviewState.prototype.setAdvancedOptions = function (val) {
+		this.advancedOptions = val;
+	};
+	CPrintPreviewState.prototype.isNeedUpdate = function (ws, data) {
+		if (!ws) {
+			return false;
+		}
+
+		var maxCol = data ? data.col : ws.nColsCount;
+		var maxRow = data ? data.row : ws.nRowsCount;
+		var res = true;
+		if (this.sheetsProps && this.sheetsProps[ws.index]) {
+			if (this.sheetsProps[ws.index].col === maxCol && this.sheetsProps[ws.index].row === maxRow) {
+				res = false;
+			}
+		}
+		if (!this.sheetsProps) {
+			this.sheetsProps = [];
+		}
+		if (!this.sheetsProps[ws.index]) {
+			this.sheetsProps[ws.index] = {};
+		}
+		this.sheetsProps[ws.index].col = maxCol;
+		this.sheetsProps[ws.index].row = maxRow;
+
+		return res;
+	};
+
+
+
 	//----------------------------------------------------------export----------------------------------------------------
 	var prot;
 	window['Asc'] = window['Asc'] || {};
@@ -11279,6 +12254,8 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	prot["asc_getWrapText"] = prot.asc_getWrapText;
 	prot["asc_getShrinkToFit"] = prot.asc_getShrinkToFit;
 	prot["asc_getPreview"] = prot.asc_getPreview;
+	prot["asc_getLocked"] = prot.asc_getLocked;
+	prot["asc_getHidden"] = prot.asc_getHidden;
 	prot["asc_setFillColor"] = prot.asc_setFillColor;
 	prot["asc_setFill"] = prot.asc_setFill;
 	prot["asc_setFontName"] = prot.asc_setFontName;
@@ -11374,7 +12351,12 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	window['AscCommonExcel'].DateGroupItem = DateGroupItem;
 	window['AscCommonExcel'].SortCondition = SortCondition;
 	window['AscCommonExcel'].AutoFilterDateElem = AutoFilterDateElem;
+	window['AscCommonExcel'].QueryTable = QueryTable;
+	window['AscCommonExcel'].QueryTableRefresh = QueryTableRefresh;
+	window['AscCommonExcel'].QueryTableField = QueryTableField;
+	window['AscCommonExcel'].QueryTableDeletedField = QueryTableDeletedField;
 	window['AscCommonExcel'].c_oAscPatternType = c_oAscPatternType;
+
 
 	window["Asc"]["CustomFilters"]			= window["Asc"].CustomFilters = CustomFilters;
 	prot									= CustomFilters.prototype;
@@ -11461,6 +12443,8 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	prot["asc_setPrintTitlesHeight"] = prot.asc_setPrintTitlesHeight;
 	prot["asc_getPrintTitlesWidth"] = prot.asc_getPrintTitlesWidth;
 	prot["asc_getPrintTitlesHeight"] = prot.asc_getPrintTitlesHeight;
+	prot["asc_getHeaderFooter"] = prot.asc_getHeaderFooter;
+	prot["asc_setHeaderFooter"] = prot.asc_setHeaderFooter;
 
 	window["Asc"]["CHeaderFooter"] = window["Asc"].CHeaderFooter = CHeaderFooter;
 	window["Asc"]["CHeaderFooterData"] = window["Asc"].CHeaderFooterData = CHeaderFooterData;
@@ -11523,5 +12507,7 @@ AutoFilterDateElem.prototype.convertDateGroupItemToRange = function(oDateGroupIt
 	prot["asc_getFormulaResult"] = prot.asc_getFormulaResult;
 	prot["asc_getFunctionResult"] = prot.asc_getFunctionResult;
 	prot["asc_getName"] = prot.asc_getName;
+
+	window["AscCommonExcel"].CPrintPreviewState = CPrintPreviewState;
 
 })(window);

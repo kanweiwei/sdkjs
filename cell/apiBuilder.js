@@ -48,7 +48,7 @@
 	 * @name Api
 	 * @property {Array} Sheets - Returns the Sheets collection that represents all the sheets in the active workbook.
 	 * @property {ApiWorksheet} ActiveSheet - Returns an object that represents the active sheet.
-	 * @property {ApiRange} Selection - Returns an object that represents the selection range.
+	 * @property {ApiRange} Selection - Returns an object that represents the selected range.
 	 */
 	var Api = window["Asc"]["spreadsheet_api"];
 
@@ -56,9 +56,9 @@
 	 * Class representing a sheet.
 	 * @constructor
 	 * @property {bool} Visible - Returns or sets the state of sheet visibility.
-	 * @property {number} Active - Makes the current sheet the active sheet.
-	 * @property {ApiRange} ActiveCell - Returns an object that represents the active cell.
-	 * @property {ApiRange} Selection - Returns an object that represents the selection range.
+	 * @property {number} Active - Makes the current sheet active.
+	 * @property {ApiRange} ActiveCell - Returns an object that represents an active cell.
+	 * @property {ApiRange} Selection - Returns an object that represents the selected range.
 	 * @property {ApiRange} Cells - Returns ApiRange that represents all the cells on the worksheet (not just the cells that are currently in use).
 	 * @property {ApiRange} Rows - Returns ApiRange that represents all the cells of the rows range.
 	 * @property {ApiRange} Cols - Returns ApiRange that represents all the cells of the columns range.
@@ -87,8 +87,8 @@
 	 * @property {ApiRange} Rows - Returns the ApiRange object that represents the rows of the specified range.
 	 * @property {ApiRange} Cols - Returns the ApiRange object that represents the columns of the specified range.
 	 * @property {number} Count - Returns the rows or columns count.
-	 * @property {string} Value - Returns the value from the first cell of the specified range or sets it to this cell.
-	 * @property {string} Formula - Returns the formula from the first cell of the specified range or sets it to this cell.
+	 * @property {string} Value - Returns a value from the first cell of the specified range or sets it to this cell.
+	 * @property {string} Formula - Returns a formula from the first cell of the specified range or sets it to this cell.
 	 * @property {string} Value2 - Returns the value2 (value without format) from the first cell of the specified range or sets it to this cell.
 	 * @property {string} Text - Returns the text from the first cell of the specified range or sets it to this cell.
 	 * @property {ApiColor} FontColor - Sets the text color to the current cell range with the previously created color object.
@@ -111,9 +111,11 @@
 	 * @property {ApiName} DefName - Returns the ApiName object.
 	 * @property {ApiComment | null} Comments - Returns the ApiComment collection that represents all the comments from the specified worksheet.
 	 * @property {'xlDownward' | 'xlHorizontal' | 'xlUpward' | 'xlVertical'} Orientation - Sets an angle to the current cell range.
+	 * @property {ApiAreas} Areas - Returns a collection of the areas.
 	 */
-	function ApiRange(range) {
+	function ApiRange(range, areas) {
 		this.range = range;
+		this.areas = areas || null;
 	}
 
 
@@ -191,18 +193,20 @@
 
 	/**
      * Possible values for the position of chart tick labels (either horizontal or vertical).
-     * * **"none"** - not display the selected tick labels.
-     * * **"nextTo"** - set the position of the selected tick labels next to the main label.
-     * * **"low"** - set the position of the selected tick labels in the part of the chart with lower values.
-     * * **"high"** - set the position of the selected tick labels in the part of the chart with higher values.
+     * * **"none"** - does not display the selected tick labels.
+     * * **"nextTo"** - sets the position of the selected tick labels next to the main label.
+     * * **"low"** - sets the position of the selected tick labels in the part of the chart with lower values.
+     * * **"high"** - sets the position of the selected tick labels in the part of the chart with higher values.
 	 * @typedef {("none" | "nextTo" | "low" | "high")} TickLabelPosition
 	 * **/
 	
 	/**
+	 * The page orientation type.
 	 * @typedef {("xlLandscape" | "xlPortrait")} PageOrientation
 	 * */
 
 	/**
+	 * The type of tick mark appearance.
 	 * @typedef {("cross" | "in" | "none" | "out")} TickMark
 	 * */
 
@@ -215,18 +219,18 @@
 	}
 
 	/**
-	 * Class representing the names.
+	 * Class representing a name.
 	 * @constructor
 	 * @property {string} Name - Sets a name to the active sheet.
-	 * @property {string} RefersTo - Returns or sets the formula that the name is defined to refer to.
-	 * @property {apiRange} RefersToRange - Returns the ApiRange object by reference.
+	 * @property {string} RefersTo - Returns or sets a formula that the name is defined to refer to.
+	 * @property {ApiRange} RefersToRange - Returns the ApiRange object by reference.
 	 */
 	function ApiName(DefName) {
 		this.DefName = DefName;
 	}
 
 	/**
-	 * Class representing the comments.
+	 * Class representing a comment.
 	 * @constructor
 	 * @property {string} Text - Returns the text from the first cell in range.
 	 */
@@ -236,7 +240,21 @@
 	}
 
 	/**
-	 * Return a class formatted according to the instructions contained in a format expression.
+	 * Class representing the areas.
+	 * @constructor
+	 * @property {number} Count - Returns a value that represents the number of objects in the collection.
+	 * @property {ApiRange} Parent - Returns the parent object for the specified collection.
+	 */
+	function ApiAreas(items, parent) {
+		this.Items = [];
+		this._parent = parent;
+		for (var i = 0; i < items.length; i++) {
+			this.Items.push(new ApiRange(items[i]));
+		}
+	}
+
+	/**
+	 * Returns a class formatted according to the instructions contained in the format expression.
 	 * @memberof Api
 	 * @param {string} expression - Any valid expression.
 	 * @param {string} [format] - A valid named or user-defined format expression.
@@ -249,7 +267,7 @@
 	};
 
 	/**
-	 * Create a new worksheet. The new worksheet becomes the active sheet.
+	 * Creates a new worksheet. The new worksheet becomes the active sheet.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sName - The name of a new worksheet.
@@ -278,7 +296,7 @@
 	});
 
 	/**
-	 * Set locale for the document.
+	 * Sets a locale to the document.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {number} LCID - The locale specified.
@@ -288,7 +306,7 @@
 	};
 	
 	/**
-	 * Return current locale id.
+	 * Returns the current locale ID.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
@@ -298,7 +316,7 @@
 	};
 
 	/**
-	 * Get the object that represents the active sheet.
+	 * Returns an object that represents the active sheet.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiWorksheet}
@@ -314,10 +332,10 @@
 	});
 
 	/**
-	 * Return an object that represents the sheet.
+	 * Returns an object that represents a sheet.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
-	 * @param {string | number} nameOrIndex Sheet name or sheet index.
+	 * @param {string | number} nameOrIndex - Sheet name or sheet index.
 	 * @returns {ApiWorksheet | null}
 	 */
 	Api.prototype.GetSheet = function (nameOrIndex) {
@@ -327,7 +345,7 @@
 	};
 
 	/**
-	 * Get the list of all the available theme colors for the spreadsheet.
+	 * Returns a list of all the available theme colors for the spreadsheet.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @returns {string[]}
@@ -342,7 +360,7 @@
 	};
 
 	/**
-	 * Set the theme colors to the current spreadsheet.
+	 * Sets the theme colors to the current spreadsheet.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sTheme - The color scheme that will be set to the current spreadsheet.
@@ -356,12 +374,17 @@
 		return false;
 	};
 
+	/**
+	 * Creates a new history point.
+	 * @memberof Api
+	 * @typeofeditors ["CSE"]
+	 */
 	Api.prototype.CreateNewHistoryPoint = function(){
 		History.Create_NewPoint();
 	};
 
 	/**
-	 * Create an RGB color setting the appropriate values for the red, green and blue color components.
+	 * Creates an RGB color setting the appropriate values for the red, green and blue color components.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {byte} r - Red color component value.
@@ -374,7 +397,7 @@
 	};
 
 	/**
-	 * Create a color selecting it from one of the available color presets.
+	 * Creates a color selecting it from one of the available color presets.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {PresetColor} sPresetColor - A preset selected from the list of the available color preset names.
@@ -386,11 +409,11 @@
 	};
 
 	/**
-	 * Return an ApiRange object that represents the rectangular intersection of two or more ranges. If one or more ranges from a different worksheet are specified, an error will be returned.
+	 * Returns the ApiRange object that represents the rectangular intersection of two or more ranges. If one or more ranges from a different worksheet are specified, an error will be returned.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} Range1 The intersecting ranges. At least two Range objects must be specified.
-	 * @param {ApiRange} Range2 The intersecting ranges. At least two Range objects must be specified.
+	 * @param {ApiRange} Range1 - One of the intersecting ranges. At least two Range objects must be specified.
+	 * @param {ApiRange} Range2 - One of the intersecting ranges. At least two Range objects must be specified.
 	 * @returns {ApiRange | Error}
 	 */
 	Api.prototype.Intersect  = function (Range1, Range2) {
@@ -407,7 +430,7 @@
 	};
 
 	/**
-	 * Return an object that represents the selection range.
+	 * Returns an object that represents the selected range.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
@@ -422,11 +445,11 @@
 	});
 
 	/**
-	 * Define a new name for a range of cells.
+	 * Adds a new name to a range of cells.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sName - The range name.
-	 * @param {string} sRef - Must contain the sheet name, followed by sign ! and  a range of cells. 
+	 * @param {string} sRef - The reference to the specified range. It must contain the sheet name, followed by sign ! and a range of cells. 
 	 * Example: "Sheet1!$A$1:$B$2".  
 	 * @param {bool} isHidden - Defines if the range name is hidden or not.
 	 * @returns {Error | true} - returns error if sName or sRef are invalid.
@@ -436,7 +459,7 @@
 	};
 
 	/**
-	 * Return an ApiName.
+	 * Returns the ApiName object by the range name.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {string} defName - The range name.
@@ -450,7 +473,7 @@
 	};
 
 	/**
-	 * Save changes to the specified document.
+	 * Saves changes to the specified document.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 */
@@ -459,7 +482,7 @@
 	};
 
 	/**
-	 * Return an ApiRange.
+	 * Returns the ApiRange object by the range reference.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sRange - The range of cells from the current sheet.
@@ -478,7 +501,7 @@
 	};
 
 	/**
-	 * Get mail merge fields.
+	 * Returns the mail merge fields.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nSheet - The sheet index.
@@ -512,13 +535,14 @@
 	};
 
 	/**
-	 * Get mail merge map.
+	 * Returns the mail merge map.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nSheet - The sheet index.
+	 * @param {boolean} [bWithFormat=false] - Specifies that the data will be received with the format.
 	 * @returns {string[][]}
 	 */
-	Api.prototype.private_GetMailMergeMap = function (nSheet) {
+	Api.prototype.private_GetMailMergeMap = function (nSheet, bWithFormat) {
 		var oSheet           = this.GetSheet(nSheet);
 		var arrMailMergeMap  = [];
 		var valuesInRow      = null;
@@ -552,9 +576,9 @@
 
 			for (var nCol = 0; nCol < colsCount; nCol++) {
 				oRange     = oSheet.GetRangeByNumber(nRow, nCol);
-				mergeValue = oRange.GetValue();
+				mergeValue = bWithFormat ? oRange.GetText() : oRange.GetValue();
 	
-				valuesInRow.push(oRange.GetValue());
+				valuesInRow.push(mergeValue);
 			}
 			
 			arrMailMergeMap.push(valuesInRow);
@@ -565,15 +589,19 @@
 	};
 
 	/**
-	 * Get mail merge data.
+	 * Returns the mail merge data.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nSheet - The sheet index.
+	 * @param {boolean} [bWithFormat=false] - Specifies that the data will be received with the format.
 	 * @returns {string[][]} 
 	 */
-	Api.prototype.GetMailMergeData = function (nSheet) {
+	Api.prototype.GetMailMergeData = function(nSheet, bWithFormat) {
+		if (bWithFormat !== true)
+			bWithFormat = false;
+
 		var arrFields       = this.private_GetMailMergeFields(nSheet);
-		var arrMailMergeMap = this.private_GetMailMergeMap(nSheet, arrFields);
+		var arrMailMergeMap = this.private_GetMailMergeMap(nSheet, arrFields, bWithFormat);
 		var resultList      = [arrFields];
 
 		for (var nMailMergeMap = 0; nMailMergeMap < arrMailMergeMap.length; nMailMergeMap++) {
@@ -583,6 +611,13 @@
 		return resultList;
 	};
 
+	/**
+	 * Recalculates all formulas in the active workbook.
+	 * @memberof Api
+	 * @typeofeditors ["CSE"]
+	 * @param {Function} fLogger - A function which specifies the logger object for checking recalculation of formulas.
+	 * @returns {bool}
+	 */
 	Api.prototype.RecalculateAllFormulas = function(fLogger) {
 		var formulas = this.wbModel.getAllFormulas(true);
 		var _compare = function(_val1, _val2) {
@@ -664,7 +699,7 @@
 	};
 
 	/**
-	 * Return the state of sheet visibility.
+	 * Returns the state of sheet visibility.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {bool}
@@ -674,10 +709,10 @@
 	};
 
 	/**
-	 * Set the state of sheet visibility.
+	 * Sets the state of sheet visibility.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} isVisible - Specify if the sheet is visible or not.
+	 * @param {bool} isVisible - Specifies if the sheet is visible or not.
 	 */
 	ApiWorksheet.prototype.SetVisible = function (isVisible) {
 		this.worksheet.setHidden(!isVisible);
@@ -692,7 +727,7 @@
 	});
 
 	/**
-	 * Make the current sheet the active sheet.
+	 * Makes the current sheet active.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 */
@@ -706,7 +741,7 @@
 	});
 
 	/**
-	 * Return an object that represents the active cell.
+	 * Returns an object that represents an active cell.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
@@ -722,14 +757,19 @@
 	});
 
 	/**
-	 * Return an object that represents the selected range.
+	 * Returns an object that represents the selected range.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
 	 */
 	ApiWorksheet.prototype.GetSelection = function () {
 		var r = this.worksheet.selectionRange.getLast();
-		return new ApiRange(this.worksheet.getRange3(r.r1, r.c1, r.r2, r.c2));
+		var ranges = this.worksheet.selectionRange.ranges;
+		var arr = [];
+		for (var i = 0; i < ranges.length; i++) {
+			arr.push(this.worksheet.getRange3(ranges[i].r1, ranges[i].c1, ranges[i].r2, ranges[i].c2));
+		}
+		return new ApiRange(this.worksheet.getRange3(r.r1, r.c1, r.r2, r.c2), arr);
 	};
 	Object.defineProperty(ApiWorksheet.prototype, "Selection", {
 		get: function () {
@@ -738,11 +778,11 @@
 	});
 
 	/**
-	 * Return an ApiRange that represents all the cells on the worksheet (not just the cells that are currently in use).
+	 * Returns the ApiRange that represents all the cells on the worksheet (not just the cells that are currently in use).
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {number} row - The row number or the cell number (if only row is defined)
-	 * @param {number} col - The column number
+	 * @param {number} row - The row number or the cell number (if only row is defined).
+	 * @param {number} col - The column number.
 	 * @returns {ApiRange}
 	 */
 	ApiWorksheet.prototype.GetCells = function (row, col) {
@@ -771,10 +811,10 @@
 	});
 
 	/**
-	 * Return an ApiRange that represents all the cells on the rows range.
+	 * Returns the ApiRange object that represents all the cells on the rows range.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {string | number} value - Specify the rows range in the string or number format.
+	 * @param {string | number} value - Specifies the rows range in the string or number format.
 	 * @returns {ApiRange}
 	 */
 	ApiWorksheet.prototype.GetRows = function (value) {
@@ -782,27 +822,36 @@
 			return this.GetCells();
 		} else if (typeof value == "number" || value.indexOf(':') == -1) {
 			value = parseInt(value);
-			if (value > 0) {
+			if (value > 0 && value <=  AscCommon.gc_nMaxRow0 + 1 && value[0] !== NaN) {
 				value --;
+			} else {
+				return new Error('The nRow must be greater than 0 and less then ' + (AscCommon.gc_nMaxRow0 + 1));
 			}
 			return new ApiRange(this.worksheet.getRange3(value, 0, value, AscCommon.gc_nMaxCol0));
 		} else {
 			value = value.split(':');
+			var isError = false;
 			for (var i = 0; i < value.length; ++i) {
 				value[i] = parseInt(value[i]);
-				if (value[i] > 0) {
+				if (value[i] > 0 && value[i] <= AscCommon.gc_nMaxRow0 + 1 && value[0] !== NaN) {
 					value[i] --;
+				} else {
+					isError = true;
 				}
 			}
-			return new ApiRange(this.worksheet.getRange3(value[0], 0, value[1], AscCommon.gc_nMaxCol0));
+			if (isError) {
+				return new Error('The nRow must be greater than 0 and less then ' + (AscCommon.gc_nMaxRow0 + 1));
+			} else {
+				return new ApiRange(this.worksheet.getRange3(value[0], 0, value[1], AscCommon.gc_nMaxCol0));
+			}
 		}
 	};
 
 	/**
-	 * Return an ApiRange that represents all the cells on the columns range.
+	 * Returns the ApiRange object that represents all the cells on the columns range.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {string} sRange - Specify the columns range in the string format.
+	 * @param {string} sRange - Specifies the columns range in the string format.
 	 * @returns {ApiRange}
 	 */
 	ApiWorksheet.prototype.GetCols = function (sRange) {
@@ -818,7 +867,7 @@
 	});
 
 	/**
-	 * Return an ApiRange that represents the used range on the specified worksheet.
+	 * Returns the ApiRange object that represents the used range on the specified worksheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
@@ -836,7 +885,7 @@
 	});
 
 	/**
-	 * Get a sheet name.
+	 * Returns a sheet name.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
@@ -846,7 +895,7 @@
 	};
 
 	/**
-	 * Set a name to the current active sheet.
+	 * Sets a name to the current active sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sName - The name which will be displayed for the current sheet at the sheet tab.
@@ -869,7 +918,7 @@
 	});
 
 	/**
-	 * Get a sheet index.
+	 * Returns a sheet index.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
@@ -904,8 +953,8 @@
 	 * Returns an object that represents the selected range of the current sheet using the <b>row/column</b> coordinates for the cell selection.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {number} nRow - The number of the row to set the cell coordinates.
-	 * @param {number} nCol - The number of the column to set the cell coordinates.
+	 * @param {number} nRow - The row number.
+	 * @param {number} nCol - The column number.
 	 * @returns {ApiRange}
 	 */
 	ApiWorksheet.prototype.GetRangeByNumber = function (nRow, nCol) {
@@ -913,7 +962,7 @@
 	};
 
 	/**
-	 * Format the selected range of cells from the current sheet as a table (with the first row formatted as a header).
+	 * Formats the selected range of cells from the current sheet as a table (with the first row formatted as a header).
 	 * <note>As the first row is always formatted as a table header, you need to select at least two rows for the table to be formed correctly.</note>
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
@@ -924,7 +973,7 @@
 	};
 
 	/**
-	 * Set the width of the specified columns.
+	 * Sets the width of the specified column.
 	 * One unit of column width is equal to the width of one character in the Normal style. 
 	 * For proportional fonts, the width of the character 0 (zero) is used.
 	 * @memberof ApiWorksheet
@@ -937,19 +986,19 @@
 	};
 
 	/**
-	 * Set the height of the specified row measured in points. 
+	 * Sets the height of the specified row measured in points. 
 	 * A point is 1/72 inch.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nRow - The number of the row to set the height to.
-	 * @param {number} nHeight - The height of the column measured in points.
+	 * @param {number} nHeight - The height of the row measured in points.
 	 */
 	ApiWorksheet.prototype.SetRowHeight = function (nRow, nHeight) {
 		this.worksheet.setRowHeight(nHeight, nRow, nRow, true);
 	};
 
 	/**
-	 * Specify whether the current sheet gridlines must be displayed or not.
+	 * Specifies whether the current sheet gridlines must be displayed or not.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {bool} isDisplayed - Specifies whether the current sheet gridlines must be displayed or not. The default value is <b>true</b>.
@@ -959,7 +1008,7 @@
 	};
 
 	/**
-	 * Specify whether the current sheet row/column headers must be displayed or not.
+	 * Specifies whether the current sheet row/column headers must be displayed or not.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {bool} isDisplayed - Specifies whether the current sheet row/column headers must be displayed or not. The default value is <b>true</b>.
@@ -969,7 +1018,7 @@
 	};
 
 	/**
-	 * Set the left margin of the sheet.
+	 * Sets the left margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nPoints - The left margin size measured in points.
@@ -979,7 +1028,7 @@
 		this.worksheet.PagePrintOptions.pageMargins.asc_setLeft(nPoints);
 	};
 	/**
-	 * Get the left margin of the sheet.
+	 * Returns the left margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {number} - The left margin size measured in points.
@@ -997,7 +1046,7 @@
 	});
 
 	/**
-	 * Set the right margin of the sheet.
+	 * Sets the right margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nPoints - The right margin size measured in points.
@@ -1007,7 +1056,7 @@
 		this.worksheet.PagePrintOptions.pageMargins.asc_setRight(nPoints);
 	};
 	/**
-	 * Get the right margin of the sheet.
+	 * Returns the right margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {number} - The right margin size measured in points.
@@ -1025,7 +1074,7 @@
 	});
 
 	/**
-	 * Set the top margin of the sheet.
+	 * Sets the top margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nPoints - The top margin size measured in points.
@@ -1035,7 +1084,7 @@
 		this.worksheet.PagePrintOptions.pageMargins.asc_setTop(nPoints);
 	};
 	/**
-	 * Get the top margin of the sheet.
+	 * Returns the top margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {number} - The top margin size measured in points.
@@ -1053,7 +1102,7 @@
 	});
 
 	/**
-	 * Set the bottom margin of the sheet.
+	 * Sets the bottom margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nPoints - The bottom margin size measured in points.
@@ -1063,7 +1112,7 @@
 		this.worksheet.PagePrintOptions.pageMargins.asc_setBottom(nPoints);
 	};
 	/**
-	 * Get the bottom margin of the sheet.
+	 * Returns the bottom margin of the sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {number} - The bottom margin size measured in points.
@@ -1081,7 +1130,7 @@
 	});
 
 	/**
-	 * Set the page orientation.
+	 * Sets the page orientation.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {PageOrientation} sPageOrientation - The page orientation type.
@@ -1091,7 +1140,7 @@
 	};
 
 	/**
-	 * Get the page orientation
+	 * Returns the page orientation.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {PageOrientation}
@@ -1112,20 +1161,20 @@
 
 
 	/**
-	 * Get the page PrintHeadings property.
+	 * Returns the page PrintHeadings property which specifies whether the current sheet row/column headings must be printed or not.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @returns {bool} - True if row and column headings are printed on this page.
+	 * @returns {bool} - Specifies whether the current sheet row/column headings must be printed or not.
 	 * */
 	ApiWorksheet.prototype.GetPrintHeadings = function ()	{
 		return this.worksheet.PagePrintOptions.asc_getHeadings();
 	};
 
 	/**
-	 * Set the page PrintHeadings property.
+	 * Specifies whether the current sheet row/column headers must be printed or not.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} bPrint - Defines if row and column headings will be printed on this page or not.
+	 * @param {bool} bPrint - Specifies whether the current sheet row/column headers must be printed or not.
 	 * */
 	ApiWorksheet.prototype.SetPrintHeadings = function (bPrint)	{
 		this.worksheet.PagePrintOptions.asc_setHeadings(!!bPrint);
@@ -1141,7 +1190,7 @@
 	});
 
 	/**
-	 * Get the page PrintGridlines property.
+	 * Returns the page PrintGridlines property which specifies whether the current sheet gridlines must be printed or not.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {bool} - True if cell gridlines are printed on this page.
@@ -1151,7 +1200,7 @@
 	};
 
 	/**
-	 * Set the page PrintGridlines property.
+	 * Specifies whether the current sheet gridlines must be printed or not.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {bool} bPrint - Defines if cell gridlines are printed on this page or not.
@@ -1170,7 +1219,7 @@
 	});
 
 	/**
-	 * Return an array of ApiName objects.
+	 * Returns an array of ApiName objects.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiName[]}
@@ -1188,10 +1237,10 @@
 	};
 
 	/**
-	 * Return an ApiName.
+	 * Returns the ApiName object by the worksheet name.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {string} defName - The range name.
+	 * @param {string} defName - The worksheet name.
 	 * @returns {ApiName | null} - returns null if definition name doesn't exist.
 	 */
 	ApiWorksheet.prototype.GetDefName = function (defName) {
@@ -1204,7 +1253,7 @@
 	};
 
 	/**
-	 * Define a new name for a range of cells.
+	 * Adds a new name to the current worksheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sName - The range name.
@@ -1224,7 +1273,7 @@
 	});
 
 	/**
-	 * Return an ApiComment.
+	 * Returns an array of ApiComment objects.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiComment[]}
@@ -1243,7 +1292,7 @@
 	});
 
 	/**
-	 * Delete an ApiWorksheet object.
+	 * Deletes the current worksheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 */
@@ -1252,7 +1301,7 @@
 	};
 
 	/**
-	 * Add a hyperlink to the specified range.
+	 * Adds a hyperlink to the specified range.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sRange - The range where the hyperlink will be added to.
@@ -1290,13 +1339,13 @@
 	};
 
 	/**
-	 * Create a chart of the set type from the selected data range of the current sheet.
-	 * <note>Please note, that the horizontal nColOffset and vertical nRowOffset offsets are calculated within the limits of the specified nFromCol column and nFromRow
-	 * row cell only. If this value exceeds the cell width or height, another vertical/horizontal position will be set.</note>
+	 * Creates a chart of the specified type from the selected data range of the current sheet.
+	 * <note>Please note that the horizontal and vertical offsets are calculated within the limits of the specified column and
+	 * row cells only. If this value exceeds the cell width or height, another vertical/horizontal position will be set.</note>
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sDataRange - The selected cell range which will be used to get the data for the chart, formed specifically and including the sheet name.
-	 * @param {bool} bInRows - Specifies whether to take the data from the rows or from the columns. If true the data from the rows will be used.
+	 * @param {bool} bInRows - Specifies whether to take the data from the rows or from the columns. If true, the data from the rows will be used.
 	 * @param {ChartType} sType - The chart type used for the chart display.
 	 * @param {number} nStyleIndex - The chart color style index (can be <b>1 - 48</b>, as described in OOXML specification).
 	 * @param {EMU} nExtX - The chart width in English measure units
@@ -1333,9 +1382,9 @@
 
 
 	/**
-	 * Adds the shape to the current sheet with the parameters specified.
-	 * <note>Please note, that the horizontal <code>nColOffset</code> and vertical <code>nRowOffset</code> offsets are
-	 * calculated within the limits of the specified <code>nFromCol</code> column and <code>nFromRow</code> row cell
+	 * Adds a shape to the current sheet with the parameters specified.
+	 * <note>Please note that the horizontal and vertical offsets are
+	 * calculated within the limits of the specified column and row cells
 	 * only. If this value exceeds the cell width or height, another vertical/horizontal position will be set.</note>
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
@@ -1345,9 +1394,9 @@
 	 * @param {ApiFill} oFill - The color or pattern used to fill the shape.
 	 * @param {ApiStroke} oStroke - The stroke used to create the element shadow.
 	 * @param {number} nFromCol - The number of the column where the beginning of the shape will be placed.
-	 * @param {EMU} nColOffset - The offset from the <code>nFromCol</code> column to the left part of the shape measured in English measure units.
+	 * @param {EMU} nColOffset - The offset from the nFromCol column to the left part of the shape measured in English measure units.
 	 * @param {number} nFromRow - The number of the row where the beginning of the shape will be placed.
-	 * @param {EMU} nRowOffset - The offset from the <code>nFromRow</code> row to the upper part of the shape measured in English measure units.
+	 * @param {EMU} nRowOffset - The offset from the nFromRow row to the upper part of the shape measured in English measure units.
 	 * @returns {ApiShape}
 	 * */
 	ApiWorksheet.prototype.AddShape = function(sType, nWidth, nHeight, oFill, oStroke, nFromCol, nColOffset, nFromRow, nRowOffset){
@@ -1358,16 +1407,16 @@
 
 
 	/**
-	 * Adds the image to the current sheet with the parameters specified.
+	 * Adds an image to the current sheet with the parameters specified.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sImageSrc - The image source where the image to be inserted should be taken from (currently only internet URL or Base64 encoded images are supported).
 	 * @param {EMU} nWidth - The image width in English measure units.
 	 * @param {EMU} nHeight - The image height in English measure units.
 	 * @param {number} nFromCol - The number of the column where the beginning of the image will be placed.
-	 * @param {EMU} nColOffset - The offset from the <code>nFromCol</code> column to the left part of the image measured in English measure units.
+	 * @param {EMU} nColOffset - The offset from the nFromCol column to the left part of the image measured in English measure units.
 	 * @param {number} nFromRow - The number of the row where the beginning of the image will be placed.
-	 * @param {EMU} nRowOffset - The offset from the <code>nFromRow</code> row to the upper part of the image measured in English measure units.
+	 * @param {EMU} nRowOffset - The offset from the nFromRow row to the upper part of the image measured in English measure units.
 	 * @returns {ApiImage}
 	 */
 	ApiWorksheet.prototype.AddImage = function(sImageSrc, nWidth, nHeight, nFromCol, nColOffset, nFromRow, nRowOffset){
@@ -1377,7 +1426,7 @@
 	};
 
 	/**
-	 * Replace current image.
+	 * Replaces the current image with a new one.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sImageSrc - The image source where the image to be inserted should be taken from (currently only internet URL or Base64 encoded images are supported).
@@ -1478,6 +1527,23 @@
 	 * @typedef {("None" | "Double" | "Hair" | "DashDotDot" | "DashDot" | "Dotted" | "Dashed" | "Thin" | "MediumDashDotDot" | "SlantDashDot" | "MediumDashDot" | "MediumDashed" | "Medium" | "Thick")} LineStyle
 	 */
 
+	//TODO xlManual param
+	/**
+	 * Specifies the sort order.
+	 * @typedef {("xlAscending" | "xlDescending")}  SortOrder
+	 * */
+
+	//TODO xlGuess param
+	/**
+	 * Specifies whether the first row of the sort range contains the header information.
+	 * @typedef {("xlNo" | "xlYes")} SortHeader
+	 * */
+
+	/**
+	 * Specifies if the sort should be by row or column.
+	 * @typedef {("xlSortColumns" | "xlSortRows")} SortOrientation
+	 * */
+
 	/**
 	 * Specifies the range angle.
 	 * @typedef {("xlDownward" | "xlHorizontal" | "xlUpward" | "xlVertical")} Angle
@@ -1489,7 +1555,7 @@
 	 */
 
 	/**
-	 * Get the type of this class.
+	 * Returns a type of the ApiRange class.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {"range"}
@@ -1500,7 +1566,7 @@
 	};
 
 	/**
-	 * Get the row number for the selected cell.
+	 * Returns a row number for the selected cell.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
@@ -1514,7 +1580,7 @@
 		}
 	});
 	/**
-	 * Get the column number for the selected cell.
+	 * Returns a column number for the selected cell.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
@@ -1529,7 +1595,7 @@
 	});
 
 	/**
-	 * Clear the entire object.
+	 * Clears the current range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 */
@@ -1538,7 +1604,7 @@
 	};
 
 	/**
-	 * Return a Range object that represents the rows in the specified range. If the specified row is outside the Range object, a new Range will be returned that represents the cells between the columns of the original range in the specified row.
+	 * Returns a Range object that represents the rows in the specified range. If the specified row is outside the Range object, a new Range will be returned that represents the cells between the columns of the original range in the specified row.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nRow - The row number (starts counting from 1, the 0 value returns an error).
@@ -1546,17 +1612,19 @@
 	 */
 	ApiRange.prototype.GetRows = function (nRow) {
 		if (typeof nRow === "undefined") {
-			var r1 = this.range.bbox.r1 + 1;
-			var r2 = this.range.bbox.r2 + 1;
-			return new ApiWorksheet(this.range.worksheet).GetRows(r1 + ":" + r2);
+			return new ApiRange(this.range.worksheet.getRange3(this.range.bbox.r1, 0, this.range.bbox.r2, AscCommon.gc_nMaxCol0));
 			// return new ApiWorksheet(this.range.worksheet).GetRows();	// return all rows from current sheet
-		} else if ( (nRow >= this.range.bbox.r1) && (nRow <= this.range.bbox.r2) ) {
-			return new ApiWorksheet(this.range.worksheet).GetRows(nRow);
 		} else {
-			var bbox = this.range.bbox;
-			if (nRow)
+			if (typeof nRow === "number" && nRow > 0 && nRow <= AscCommon.gc_nMaxRow0 + 1) {
 				nRow--;
-			return new ApiRange(this.range.worksheet.getRange3(nRow, bbox.c1, nRow, bbox.c2));
+				if ( (nRow >= this.range.bbox.r1) && (nRow <= this.range.bbox.r2) ) {
+					return new ApiRange(this.range.worksheet.getRange3(nRow, 0, nRow, AscCommon.gc_nMaxCol0));
+				} else {
+					return new ApiRange(this.range.worksheet.getRange3(nRow, this.range.bbox.c1, nRow, this.range.bbox.c2));
+				}
+			} else {
+				return new Error('The nRow must be greater than 0 and less then ' + (AscCommon.gc_nMaxRow0 + 1));
+			}
 		}
 	};
 	Object.defineProperty(ApiRange.prototype, "Rows", {
@@ -1566,21 +1634,30 @@
 	});
 
 	/**
-	 * Returns a Range object that represents all the cells on the columns range.
+	 * Returns a Range object that represents the columns in the specified range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nCol - The column number. * 
 	 * @returns {ApiRange}
 	 */
 	 ApiRange.prototype.GetCols = function (nCol) {
-		if (nCol) nCol--;
 		if (typeof nCol === "undefined") {
 			return new ApiRange(this.range.worksheet.getRange3(0, this.range.bbox.c1, AscCommon.gc_nMaxRow0, this.range.bbox.c2));
-		} else if ( (nCol >= this.range.bbox.c1) && (nCol <= this.range.bbox.c2) ) {
-			return new ApiRange(this.range.worksheet.getRange3(0, nCol, AscCommon.gc_nMaxRow0, nCol));
 		} else {
-			return new ApiRange(this.range.worksheet.getRange3(this.range.bbox.r1, nCol, this.range.bbox.r2, nCol));
-		}
+			if (typeof nCol === "number" && nCol > 0 && nCol <= AscCommon.gc_nMaxCol0 + 1)
+			{
+				nCol--;
+				if ( (nCol >= this.range.bbox.c1) && (nCol <= this.range.bbox.c2) ) {
+					return new ApiRange(this.range.worksheet.getRange3(0, nCol, AscCommon.gc_nMaxRow0, nCol));
+				}
+				else {
+					return new ApiRange(this.range.worksheet.getRange3(this.range.bbox.r1, nCol, this.range.bbox.r2, nCol));
+				}
+			} else {
+				return new Error('The nCol must be greater than 0 and less then ' + (AscCommon.gc_nMaxCol0 + 1));
+			}
+		} 
+		
 	};
 	Object.defineProperty(ApiRange.prototype, "Cols", {
 		get: function () {
@@ -1629,8 +1706,8 @@
 	 * Returns a Range object that represents all the cells in the specified range or a specified cell.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {number} row - The row number or the cell number (if only row is defined)
-	 * @param {number} col - The column number
+	 * @param {number} row - The row number or the cell number (if only row is defined).
+	 * @param {number} col - The column number.
 	 * @returns {ApiRange}
 	 */
 	 ApiRange.prototype.GetCells = function (row, col) {
@@ -1655,7 +1732,7 @@
 	});
 
 	/**
-	 * Set cell offset
+	 * Sets the cell offset.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nRow - The row number.
@@ -1666,7 +1743,7 @@
 	};
 
 	/**
-	 * Get cell address.
+	 * Returns the cell address.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {bool} RowAbs - Defines if the link to the row is absolute or not.
@@ -1716,7 +1793,7 @@
 };
 
 	/**
-	 * Get rows or columns count.
+	 * Returns the rows or columns count.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
@@ -1750,7 +1827,7 @@
 	});
 
 	/**
-	 * Get the value of the first cell in range.
+	 * Returns a value of the first cell in the current range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
@@ -1760,24 +1837,51 @@
 	};
 
 	/**
-	 * Set the value for the current cell or a cell range.
+	 * Sets a value to the current cell or cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {string} sValue - The general value for the cell or cell range in string format.
+	 * @param {string | bool | number | Array[] | Array[][]} data - The general value for the cell or cell range.
 	 * @return {bool} - returns false if such a range does not exist.
 	 */
-	ApiRange.prototype.SetValue = function (sValue) {
-		sValue = checkFormat(sValue);
+	ApiRange.prototype.SetValue = function (data) {
 		if (!this.range)
 			return false;
-		this.range.setValue(sValue.toString());
-		if (sValue.type === AscCommonExcel.cElementType.number) {
-			this.SetNumberFormat(AscCommon.getShortDateFormat());
+		
+		if (Array.isArray(data)) {
+			var checkDepth = function(x) { return Array.isArray(x) ? 1 + Math.max.apply(this, x.map(checkDepth)) : 0;};
+			var maxDepth = checkDepth(data);
+			if (maxDepth <= 2) {
+				if (this.range.isOneCell()) {
+					data = maxDepth == 1 ? data[0] : data[0][0];
+				} else {
+					var bbox = this.range.bbox;
+					var nCol = Math.min( (bbox.c2 - bbox.c1 + 1), data.length);
+					var nRow = bbox.r2 - bbox.r1 + 1;
+					for (var i = 0; i < nCol; i++) {
+						var cRow = (nRow > data[i].length) ? data[i].length : nRow;
+						for (var k = 0; k < cRow; k++) {
+							var cell = this.range.worksheet.getRange3( (bbox.r1 + k), (bbox.c1 + i), (bbox.r1 + k), (bbox.c1 + i) );
+							var value = checkFormat( ( (maxDepth == 1) ? data[i] : data[i][k] ) );
+							cell.setValue(value.toString());
+							if (value.type === AscCommonExcel.cElementType.number)
+								cell.setNumFormat(AscCommon.getShortDateFormat());
+						}
+					}
+					// ToDo update range in setValue
+					var worksheet = this.range.worksheet;
+					worksheet.workbook.handlers.trigger("cleanCellCache", worksheet.getId(), [this.range.bbox], true);
+					return true;
+				}
+			}
 		}
+		data = checkFormat(data);
+		this.range.setValue(data.toString());
+		if (data.type === AscCommonExcel.cElementType.number)
+			this.SetNumberFormat(AscCommon.getShortDateFormat());
+
 		// ToDo update range in setValue
 		var worksheet = this.range.worksheet;
 		worksheet.workbook.handlers.trigger("cleanCellCache", worksheet.getId(), [this.range.bbox], true);
-
 		return true;
 	};
 
@@ -1791,7 +1895,7 @@
 	});
 
 	/**
-	 * Get the formula of the first cell in range.
+	 * Returns a formula of the first cell in the current range.
 	 * @typeofeditors ["CSE"]
 	 * @memberof ApiRange
 	 * @return {string} - return Value2 property (value without format) if formula doesn't exist.  
@@ -1813,7 +1917,7 @@
 	});
 
 	/**
-	 * Get the Value2 property (value without format) of the first cell in range.
+	 * Returns the Value2 property (value without format) of the first cell in the current range.
 	 * @typeofeditors ["CSE"]
 	 * @memberof ApiRange
 	 * @return {string} 
@@ -1832,7 +1936,7 @@
 	});
 
 	/**
-	 * Get the text of the first cell in range.
+	 * Returns the text of the first cell in the current range.
 	 * @typeofeditors ["CSE"]
 	 * @memberof ApiRange
 	 * @return {string} 
@@ -1851,10 +1955,10 @@
 	});
 
 	/**
-	 * Set the text color for the current cell range with the previously created color object.
+	 * Sets the text color to the current cell range with the previously created color object.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiColor} oColor - The color object previously created to set the color to the text in the cell / cell range.
+	 * @param {ApiColor} oColor - The color object which specifies the color to be set to the text in the cell / cell range.
 	 */
 	ApiRange.prototype.SetFontColor = function (oColor) {
 		this.range.setFontcolor(oColor.color);
@@ -1866,7 +1970,7 @@
 	});
 
 	/**
-	 * Get the value hiding property.
+	 * Returns the value hiding property.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {bool} - returns true if the values in the range specified are hidden.
@@ -1887,10 +1991,10 @@
 		}
 	};
 	/**
-	 * Set the value hiding property.
+	 * Sets the value hiding property.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} isHidden - Specifies if the values in the range specified are hidden or not.
+	 * @param {bool} isHidden - Specifies if the values in the current range are hidden or not.
 	 */
 	ApiRange.prototype.SetHidden = function (isHidden) {
 		var range = this.range;
@@ -1916,7 +2020,7 @@
 	});
 
 	/**
-	 * Get columns width value.
+	 * Returns the column width value.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
@@ -1928,12 +2032,12 @@
 		return ws.colWidthToCharCount(ws.modelColWidthToColWidth(width));
 	};
 	/**
-	 * Set the width of all the columns in the specified range.
+	 * Sets the width of all the columns in the current range.
 	 * One unit of column width is equal to the width of one character in the Normal style. 
 	 * For proportional fonts, the width of the character 0 (zero) is used. 
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {number} nWidth The width of the column divided by 7 pixels.
+	 * @param {number} nWidth - The width of the column divided by 7 pixels.
 	 */
 	ApiRange.prototype.SetColumnWidth = function (nWidth) {
 		this.range.worksheet.setColWidth(nWidth, this.range.bbox.c1, this.range.bbox.c2);
@@ -1962,20 +2066,20 @@
 	});
 
 	/**
-	 * Get row height value.
+	 * Returns the row height value.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @returns {pt} The row height in the range specified, measured in points.
+	 * @returns {pt} - The row height in the range specified, measured in points.
 	 */
 	ApiRange.prototype.GetRowHeight = function () {
 		return this.range.worksheet.getRowHeight(this.range.bbox.r1);
 	};
 
 	/**
-	* Set row height value.
+	* Sets the row height value.
 	* @memberof ApiRange
 	* @typeofeditors ["CSE"]
-	* @param {pt} nHeight The row height in the range specified, measured in points.
+	* @param {pt} nHeight - The row height in the current range measured in points.
 	 */
 	ApiRange.prototype.SetRowHeight = function (nHeight) {
 		this.range.worksheet.setRowHeight(nHeight, this.range.bbox.r1, this.range.bbox.r2, false);
@@ -2000,7 +2104,7 @@
 	});
 
 	/**
-	 * Set the font size for the characters of the current cell range.
+	 * Sets the font size to the characters of the current cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nSize - The font size value measured in points.
@@ -2015,7 +2119,7 @@
 	});
 
 	/**
-	 * Set the specified font family as the font name for the current cell range.
+	 * Sets the specified font family as the font name for the current cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sName - The font family name used for the current cell range.
@@ -2030,10 +2134,10 @@
 	});
 
 	/**
-	 * Set the vertical alignment of the text in the current cell range.
+	 * Sets the vertical alignment of the text in the current cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {'center' | 'bottom' | 'top' | 'distributed' | 'justify'} sAligment - The parameters will define the vertical alignment that will be applied to the cell contents.
+	 * @param {'center' | 'bottom' | 'top' | 'distributed' | 'justify'} sAligment - The vertical alignment that will be applied to the cell contents.
 	 * @returns {bool} - return false if sAligment doesn't exist.
 	 */
 	ApiRange.prototype.SetAlignVertical = function (sAligment) {
@@ -2077,10 +2181,10 @@
 	});
 
 	/**
-	 * Set the horizontal alignment of the text in the current cell range.
+	 * Sets the horizontal alignment of the text in the current cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {'left' | 'right' | 'center' | 'justify'} sAlignment - Set the horizontal alignment of the text in the current cell range.
+	 * @param {'left' | 'right' | 'center' | 'justify'} sAlignment - The horizontal alignment that will be applied to the cell contents.
 	 * @returns {bool} - return false if sAligment doesn't exist.
 	 */
 	ApiRange.prototype.SetAlignHorizontal = function (sAlignment) {
@@ -2119,10 +2223,10 @@
 	});
 
 	/**
-	 * Set the bold property to the text characters in the current cell or cell range.
+	 * Sets the bold property to the text characters in the current cell or cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} isBold - Specifies that the contents of this cell / cell range are displayed bold.
+	 * @param {bool} isBold - Specifies that the contents of the current cell / cell range are displayed bold.
 	 */
 	ApiRange.prototype.SetBold = function (isBold) {
 		this.range.setBold(!!isBold);
@@ -2134,10 +2238,10 @@
 	});
 
 	/**
-	 * Set the italic property to the text characters in the current cell or cell range.
+	 * Sets the italic property to the text characters in the current cell or cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} isItalic - Specifies that the contents of this cell / cell range are displayed italicized.
+	 * @param {bool} isItalic - Specifies that the contents of the current cell / cell range are displayed italicized.
 	 */
 	ApiRange.prototype.SetItalic = function (isItalic) {
 		this.range.setItalic(!!isItalic);
@@ -2149,16 +2253,16 @@
 	});
 
 	/**
-	 * Specify that the contents of this cell / cell range are displayed along with a line appearing directly below the character.
+	 * Specifies that the contents of the current cell / cell range are displayed along with a line appearing directly below the character.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {'none' | 'single' | 'singleAccounting' | 'double' | 'doubleAccounting'} undelineType - Specifies the type of the
 	 * line displayed under the characters. The following values are available:
 	 * * <b>"none"</b> - for no underlining;
-	 * * <b>"single"</b> - for the single line underlining the cell contents;
-	 * * <b>"singleAccounting"</b> - for the single line underlining the cell contents but not protruding beyond the cell borders;
-	 * * <b>"double"</b> - for the double line underlining the cell contents;
-	 * * <b>"doubleAccounting"</b> - for the double line underlining the cell contents but not protruding beyond the cell borders.
+	 * * <b>"single"</b> - for a single line underlining the cell contents;
+	 * * <b>"singleAccounting"</b> - for a single line underlining the cell contents but not protruding beyond the cell borders;
+	 * * <b>"double"</b> - for a double line underlining the cell contents;
+	 * * <b>"doubleAccounting"</b> - for a double line underlining the cell contents but not protruding beyond the cell borders.
 	 */
 	ApiRange.prototype.SetUnderline = function (undelineType) {
 		var val;
@@ -2189,7 +2293,7 @@
 	});
 
 	/**
-	 * Specify that the contents of the cell / cell range are displayed with a single horizontal line through the center of the contents.
+	 * Specifies that the contents of the cell / cell range are displayed with a single horizontal line through the center of the contents.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {bool} isStrikeout - Specifies if the contents of the current cell / cell range are displayed struck through.
@@ -2204,17 +2308,17 @@
 	});
 
 	/**
-	 * Specify whether the words in the cell must be wrapped to fit the cell size or not.
+	 * Specifies whether the words in the cell must be wrapped to fit the cell size or not.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} isWrap - When set to <b>true</b> the words in the cell will be wrapped to fit the cell size.
+	 * @param {bool} isWrap - Specifies if the words in the cell will be wrapped to fit the cell size.
 	 */
 	ApiRange.prototype.SetWrap = function (isWrap) {
 		this.range.setWrap(!!isWrap);
 	};
 
 	/**
-	 * Return the information about the wrapping cell style.
+	 * Returns the information about the wrapping cell style.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {bool}
@@ -2232,17 +2336,17 @@
 	});
 
 	/**
-	 * Set the background color for the current cell range with the previously created color object.
-	 * Set 'No Fill' when previously created color object is null.
+	 * Sets the background color to the current cell range with the previously created color object.
+	 * Sets 'No Fill' when previously created color object is null.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiColor} oColor - The color object previously created to set the color to the background in the cell / cell range.
+	 * @param {ApiColor} oColor - The color object which specifies the color to be set to the background in the cell / cell range.
 	 */
 	ApiRange.prototype.SetFillColor = function (oColor) {
 		this.range.setFillColor('No Fill' === oColor ? null : oColor.color);
 	};
 	/**
-	 * Get the background color for the current cell range.
+	 * Returns the background color for the current cell range. Returns 'No Fill' when the color of the background in the cell / cell range is null.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiColor|'No Fill'} - return 'No Fill' when the color to the background in the cell / cell range is null.
@@ -2261,7 +2365,7 @@
 	});
 
 	/**
-	 * Specify whether the number in the cell should be treated like number, currency, date, time, etc. or just like text.
+	 * Specifies whether a number in the cell should be treated like number, currency, date, time, etc. or just like text.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sFormat - Specifies the mask applied to the number in the cell.
@@ -2276,12 +2380,12 @@
 	});
 
 	/**
-	 * Set the border to the cell / cell range with the parameters specified.
+	 * Sets the border to the cell / cell range with the parameters specified.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {BordersIndex} bordersIndex - Specifies the cell border position.
 	 * @param {LineStyle} lineStyle - Specifies the line style used to form the cell border.
-	 * @param {ApiColor} oColor - The color object previously created to set the color to the cell border.
+	 * @param {ApiColor} oColor - The color object which specifies the color to be set to the cell border.
 	 */
 	ApiRange.prototype.SetBorders = function (bordersIndex, lineStyle, oColor) {
 		var borders = new AscCommonExcel.Border();
@@ -2317,7 +2421,7 @@
 	};
 
 	/**
-	 * Merge the selected cell range into a single cell or a cell row.
+	 * Merges the selected cell range into a single cell or a cell row.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {bool} isAcross - When set to <b>true</b>, the cells within the selected range will be merged along the rows,
@@ -2336,7 +2440,7 @@
 	};
 
 	/**
-	 * Split the selected merged cell range into single cells.
+	 * Splits the selected merged cell range into the single cells.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 */
@@ -2345,7 +2449,7 @@
 	};
 	
 	/**
-	 * Return one cell or cells from the merge area.
+	 * Returns one cell or cells from the merge area.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
@@ -2362,7 +2466,7 @@
 	});
 
 	/**
-	 * Execute a provided function once for each cell.
+	 * Executes a provided function once for each cell.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {Function} fCallback - A function which will be executed for each cell.
@@ -2377,7 +2481,7 @@
 	};
 
 	/**
-	 * Add a comment to the range.
+	 * Adds a comment to the current range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sText - The comment text.
@@ -2400,7 +2504,7 @@
 	};
 
 	/**
-	 * Return a Worksheet object that represents the worksheet containing the specified range. Read-only.
+	 * Returns the Worksheet object that represents the worksheet containing the specified range. It will be available in the read-only mode.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiWorksheet}
@@ -2415,7 +2519,7 @@
 	});
 
 	/**
-	 * Return an ApiName.
+	 * Returns the ApiName object of the current range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiName}
@@ -2436,7 +2540,7 @@
 	});
 
 	/**
-	 * Return an ApiComment.
+	 * Returns the ApiComment object of the current range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiComment | null} - returns null if range does not consist of one cell.
@@ -2455,7 +2559,7 @@
 	});
 
 	/**
-	 * Select the object.
+	 * Selects the current range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 */
@@ -2468,7 +2572,7 @@
 	};
 
 	/**
-	 * Returns the range angle.
+	 * Returns the current range angle.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @return {Angle}
@@ -2509,6 +2613,207 @@
 			return this.SetOrientation();
 		}
 	});
+
+	/**
+	 * Sorts the cells in the given range by the parameters specified in the request.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {ApiRange | String} key1 - First sort field.
+	 * @param {SortOrder} sSortOrder1 - The sort order for the values specified in Key1.
+	 * @param {ApiRange | String} key2 - Second sort field.
+	 * @param {SortOrder} sSortOrder2 - The sort order for the values specified in Key2.
+	 * @param {ApiRange | String} key3 - Third sort field.
+	 * @param {SortOrder} sSortOrder3 - The sort order for the values specified in Key3.
+	 * @param {SortHeader} sHeader - Specifies whether the first row contains header information.
+	 * @param {SortOrientation} sOrientation - Specifies if the sort should be by row (default) or column.
+	 */
+	ApiRange.prototype.SetSort = function (key1, sSortOrder1, key2, /*Type,*/ sSortOrder2, key3, sSortOrder3, sHeader, /*OrderCustom, MatchCase,*/ sOrientation/*, SortMethod, DataOption1, DataOption2, DataOption3*/) {
+		var ws = this.range.worksheet;
+		var sortSettings = new Asc.CSortProperties(ws);
+		var range = this.range.bbox;
+
+		var aMerged = ws.mergeManager.get(range);
+		if (aMerged.outer.length > 0 || (aMerged.inner.length > 0 && null == window['AscCommonExcel']._isSameSizeMerged(range, aMerged.inner, true))) {
+			return;
+		}
+
+		sortSettings.hasHeaders = sHeader === "xlYes";
+		var columnSort = sortSettings.columnSort = sOrientation !== "xlSortRows";
+
+		var getSortLevel = function(_key, _order) {
+			var index = null;
+			if (_key instanceof ApiRange) {
+				index = columnSort ? _key.range.bbox.c1 - range.c1 : _key.range.bbox.r1 - range.r1;
+			} else if (typeof _key === "string") {
+				//named range
+				var _defName = ws.workbook.getDefinesNames(_key);
+				if (_defName) {
+					var defNameRef;
+					AscCommonExcel.executeInR1C1Mode(false, function () {
+						defNameRef = AscCommonExcel.getRangeByRef(_defName.ref, ws, true, true)
+					});
+					if (defNameRef && defNameRef[0] && defNameRef[0].worksheet) {
+						if (range.contains(defNameRef[0].bbox.c1, defNameRef[0].bbox.r1)) {
+							if (defNameRef[0].worksheet.Id === ws.Id) {
+								index = columnSort ? defNameRef[0].bbox.c1 - range.c1 : defNameRef[0].bbox.r1 - range.r1;
+							}
+						} else {
+							//error
+							return false;
+						}
+					}
+				}
+			}
+
+			if (null === index) {
+				return null;
+			}
+
+			var level = new Asc.CSortPropertiesLevel();
+			level.index = index;
+			level.descending = _order === "xlDescending" ? Asc.c_oAscSortOptions.Descending : Asc.c_oAscSortOptions.Ascending;
+			sortSettings.levels.push(level);
+		};
+
+		sortSettings.levels = [];
+		if (key1 && false === getSortLevel(key1, sSortOrder1)) {
+			return;
+		}
+		if (key2 && false === getSortLevel(key2, sSortOrder2)) {
+			return;
+		}
+		if (key3 && false === getSortLevel(key3, sSortOrder3)) {
+			return;
+		}
+
+		var oWorksheet = Asc['editor'].wb.getWorksheet();
+		var tables = ws.autoFilters.getTablesIntersectionRange(range);
+		var obj;
+		if(tables && tables.length) {
+			obj = tables[0];
+		} else if(ws.AutoFilter && ws.AutoFilter.Ref && ws.AutoFilter.Ref.intersection(range)) {
+			obj = ws.AutoFilter;
+		}
+		ws.setCustomSort(sortSettings, obj, null, oWorksheet && oWorksheet.cellCommentator, range);
+	};
+
+	/*Object.defineProperty(ApiRange.prototype, "Sort", {
+		set: function (obj) {
+			return this.SetSort(obj.Key1, obj.Order1, obj.Key2, obj.Type, obj.Order2, obj.Key3, obj.Order3, obj.Header,
+				obj.OrderCustom, obj.MatchCase, obj.Orientation, obj.SortMethod, obj.DataOption1, obj.DataOption2,
+				obj.DataOption3);
+		}
+	});*/
+
+	/**
+	 * Deletes the Range object.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {?String} shift - Specifies how to shift cells to replace the deleted cells ("up", "left").
+	 */
+	ApiRange.prototype.Delete = function(shift) {
+		if (shift && typeof Shift == "string") {
+			shift = shift.toLocaleLowerCase();
+		} else {
+			var bbox = this.range.bbox;
+			var rows = bbox.r2 - bbox.r1 + 1;
+			var cols = bbox.c2 - bbox.c1 + 1;
+			shift = (rows <= cols) ? "up" : "left";
+		}
+		if (shift == "up")
+			this.range.deleteCellsShiftUp();
+		else
+			this.range.deleteCellsShiftLeft()
+	};
+
+	/**
+	 * Inserts a cell or a range of cells into the worksheet or macro sheet and shifts other cells away to make space.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {?String} shift - Specifies which way to shift the cells ("right", "down").
+	 */
+	 ApiRange.prototype.Insert = function(shift) {
+		if (shift && typeof Shift == "string") {
+			shift = shift.toLocaleLowerCase();
+		} else {
+			var bbox = this.range.bbox;
+			var rows = bbox.r2 - bbox.r1 + 1;
+			var cols = bbox.c2 - bbox.c1 + 1;
+			shift = (rows <= cols) ? "down" : "right";
+		}
+		if (shift == "down")
+			this.range.addCellsShiftBottom();
+		else
+			this.range.addCellsShiftRight()
+	};
+
+	/**
+	 * Changes the width of the columns or the height of the rows in the range to achieve the best fit.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {?bool} bRows - Specifies if the width of the columns will be autofit.
+	 * @param {?bool} bCols - Specifies if the height of the rows will be autofit.
+	 */
+	ApiRange.prototype.AutoFit = function(bRows, bCols) {
+		var index = this.range.worksheet.getIndex();
+		if (bRows)
+			this.range.worksheet.workbook.oApi.wb.getWorksheet(index).autoFitRowHeight(this.range.bbox.r1, this.range.bbox.r2);
+
+		for (var i = this.range.bbox.c1; i <= this.range.bbox.c2 && bCols; i++)
+			this.range.worksheet.workbook.oApi.wb.getWorksheet(index).autoFitColumnsWidth(i);
+	};
+
+	/**
+	 * Returns a collection of the ranges.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @return {ApiAreas}
+	 */
+	ApiRange.prototype.GetAreas = function() {
+		return new ApiAreas(this.areas || [this.range], this);
+	};
+	Object.defineProperty(ApiRange.prototype, "Areas", {
+		get: function () {
+			return this.GetAreas();
+		}
+	});
+
+	/**
+	 * Copies a range to the specified range.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {ApiRange} destination - Specifies a new range to which the specified range will be copied.
+	 */
+	ApiRange.prototype.Copy = function(destination) {
+		if (destination && destination instanceof ApiRange) {
+			var cols = this.GetCols().Count - 1;
+			var rows = this.GetRows().Count - 1;
+			var bbox = destination.range.bbox;
+			var range = destination.range.worksheet.getRange3(bbox.r1, bbox.c1, (bbox.r1 + rows), (bbox.c1 + cols) );
+			this.range.move(range.bbox, true, destination.range.worksheet);
+		} else {
+			return new Error ("Invalid destination");
+		}
+	};
+	
+	/**
+	 * Pastes the Range object to the specified range.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {ApiRange} rangeFrom - Specifies the range to be pasted to the current range
+	 */
+	ApiRange.prototype.Paste = function(rangeFrom) {
+		if (rangeFrom && rangeFrom instanceof ApiRange) {
+			var cols = rangeFrom.GetCols().Count - 1;
+			var rows = rangeFrom.GetRows().Count - 1;
+			var bbox = this.range.bbox;
+			var range = this.range.worksheet.getRange3(bbox.r1, bbox.c1, (bbox.r1 + rows), (bbox.c1 + cols) );
+			rangeFrom.range.move(range.bbox, true, range.worksheet);
+		} else {
+			return new Error ("Invalid range");
+		}
+	};
+
 	//------------------------------------------------------------------------------------------------------------------
 	//
 	// ApiDrawing
@@ -2516,7 +2821,7 @@
 	//------------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Get the type of the class based on this base class.
+	 * Returns a type of the ApiDrawing class.
 	 * @memberof ApiDrawing
 	 * @typeofeditors ["CSE"]
 	 * @returns {"drawing"}
@@ -2527,7 +2832,7 @@
 	};
 
 	/**
-	 * Set the size of the object (image, shape, chart) bounding box.
+	 * Sets a size of the object (image, shape, chart) bounding box.
 	 * @memberof ApiDrawing
 	 * @typeofeditors ["CSE"]
 	 * @param {EMU} nWidth - The object width measured in English measure units.
@@ -2547,9 +2852,9 @@
 	};
 
 	/**
-	 * Change the position for the drawing object.
-	 * <note>Please note, that the horizontal nColOffset and vertical nRowOffset offsets are calculated within the limits of
-	 * the specified nFromCol column and nFromRow row cell only. If this value exceeds the cell width or height, another vertical/horizontal position will be set.</note>
+	 * Changes the position for the drawing object.
+	 * <note>Please note that the horizontal and vertical offsets are calculated within the limits of
+	 * the specified column and row cells only. If this value exceeds the cell width or height, another vertical/horizontal position will be set.</note>
 	 * @memberof ApiDrawing
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nFromCol - The number of the column where the beginning of the drawing object will be placed.
@@ -2588,7 +2893,7 @@
 	//------------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Get the type of this class.
+	 * Returns a type of the ApiImage class.
 	 * @memberof ApiImage
 	 * @typeofeditors ["CDE", "CSE"]
 	 * @returns {"image"}
@@ -2605,7 +2910,7 @@
 	//------------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Get the type of this class.
+	 * Returns a type of the ApiShape class.
 	 * @memberof ApiShape
 	 * @typeofeditors ["CSE"]
 	 * @returns {"shape"}
@@ -2615,24 +2920,8 @@
 		return "shape";
 	};
 
-
 	/**
-	 * Get the shape inner contents where a paragraph or text runs can be inserted. 
-	 * @memberof ApiShape
-	 * @typeofeditors ["CSE"]
-	 * @returns {?ApiDocumentContent}
-	 */
-	ApiShape.prototype.GetDocContent = function()
-	{
-		var oApi = Asc["editor"];
-		if(oApi && this.Drawing && this.Drawing.txBody && this.Drawing.txBody.content)
-		{
-			return oApi.private_CreateApiDocContent(this.Drawing.txBody.content);
-		}
-		return null;
-	};
-	/**
-	 * Get the shape inner contents where a paragraph or text runs can be inserted. 
+	 * Returns the shape inner contents where a paragraph or text runs can be inserted. 
 	 * @memberof ApiShape
 	 * @typeofeditors ["CSE"]
 	 * @returns {?ApiDocumentContent}
@@ -2648,7 +2937,23 @@
 	};
 
 	/**
-	 * Set the vertical alignment for the shape content where a paragraph or text runs can be inserted.
+	 * Returns the shape inner contents where a paragraph or text runs can be inserted. 
+	 * @memberof ApiShape
+	 * @typeofeditors ["CSE"]
+	 * @returns {?ApiDocumentContent}
+	 */
+	ApiShape.prototype.GetDocContent = function()
+	{
+		var oApi = Asc["editor"];
+		if(oApi && this.Drawing && this.Drawing.txBody && this.Drawing.txBody.content)
+		{
+			return oApi.private_CreateApiDocContent(this.Drawing.txBody.content);
+		}
+		return null;
+	};
+
+	/**
+	 * Sets the vertical alignment to the shape content where a paragraph or text runs can be inserted.
 	 * @memberof ApiShape
 	 * @typeofeditors ["CSE"]
 	 * @param {"top" | "center" | "bottom" } sVerticalAlign - The vertical alignment type for the shape inner contents.
@@ -2691,7 +2996,7 @@
 	//------------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Get the type of this class.
+	 * Returns a type of the ApiChart class.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @returns {"chart"}
@@ -2702,7 +3007,7 @@
 	};
 
 	/**
-	 *  Specify the chart title.
+	 *  Specifies the chart title with the specified parameters.
 	 *  @memberof ApiChart
 	 *  @typeofeditors ["CSE"]
 	 *  @param {string} sTitle - The title which will be displayed for the current chart.
@@ -2715,7 +3020,7 @@
 	};
 
 	/**
-	 *  Specify the chart horizontal axis title.
+	 *  Specifies the chart horizontal axis title.
 	 *  @memberof ApiChart
 	 *  @typeofeditors ["CSE"]
 	 *  @param {string} sTitle - The title which will be displayed for the horizontal axis of the current chart.
@@ -2728,7 +3033,7 @@
 	};
 
 	/**
-	 *  Specify the chart vertical axis title.
+	 *  Specifies the chart vertical axis title.
 	 *  @memberof ApiChart
 	 *  @typeofeditors ["CSE"]
 	 *  @param {string} sTitle - The title which will be displayed for the vertical axis of the current chart.
@@ -2742,11 +3047,11 @@
 
 
 	/**
-	 * Specify the direction of the data displayed on the vertical axis.
+	 * Specifies the direction of the data displayed on the vertical axis.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} bIsMinMax - The <code>true</code> value will set the normal data direction for the vertical axis (from minimum to maximum).
-	 * The <code>false</code> value will set the inverted data direction for the vertical axis (from maximum to minimum).
+	 * @param {bool} bIsMinMax - The <code>true</code> value sets the normal data direction for the vertical axis (from minimum to maximum).
+	 * The <code>false</code> value sets the inverted data direction for the vertical axis (from maximum to minimum).
 	 * */
 	ApiChart.prototype.SetVerAxisOrientation = function(bIsMinMax){
 		AscFormat.builder_SetChartVertAxisOrientation(this.Chart, bIsMinMax);
@@ -2754,7 +3059,7 @@
 
 
 	/**
-	 * Specify major tick mark for horizontal axis.
+	 * Specifies the major tick mark for the horizontal axis.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
@@ -2764,7 +3069,7 @@
 	};
 
 	/**
-	 * Specify minor tick mark for horizontal axis.
+	 * Specifies the minor tick mark for the horizontal axis.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
@@ -2774,7 +3079,7 @@
 	};
 
 	/**
-	 * Specify major tick mark for vertical axis.
+	 * Specifies the major tick mark for the vertical axis.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
@@ -2784,7 +3089,7 @@
 	};
 
 	/**
-	 * Specify minor tick mark for vertical axis.
+	 * Specifies the minor tick mark for the vertical axis.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
@@ -2794,18 +3099,18 @@
 	};
 
 	/**
-	 * Specify the direction of the data displayed on the horizontal axis.
+	 * Specifies the direction of the data displayed on the horizontal axis.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
-	 * @param {bool} bIsMinMax - The <code>true</code> value will set the normal data direction for the horizontal axis
-	 * (from minimum to maximum). The <code>false</code> value will set the inverted data direction for the horizontal axis (from maximum to minimum).
+	 * @param {bool} bIsMinMax - The <code>true</code> value sets the normal data direction for the horizontal axis
+	 * (from minimum to maximum). The <code>false</code> value sets the inverted data direction for the horizontal axis (from maximum to minimum).
 	 * */
 	ApiChart.prototype.SetHorAxisOrientation = function(bIsMinMax){
 		AscFormat.builder_SetChartHorAxisOrientation(this.Chart, bIsMinMax);
 	};
 
 	/**
-	 * Specify the chart legend position.
+	 * Specifies the chart legend position.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {"left" | "top" | "right" | "bottom" | "none"} sLegendPos - The position of the chart legend inside the chart window.
@@ -2819,7 +3124,7 @@
 	};
 
 	/**
-	 * Specify the legend font size.
+	 * Specifies the legend font size.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {pt} nFontSize - The text size value measured in points.
@@ -2830,7 +3135,7 @@
 	};
 
 	/**
-	 * Specify which chart data labels are shown for the chart.
+	 * Specifies which chart data labels are shown for the chart.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {bool} bShowSerName - Whether to show or hide the source table column names used for the data which the chart will be build from.
@@ -2844,7 +3149,7 @@
 	};
 
 	/**
-	 * Spicify the show options for data labels.
+	 * Spicifies the show options for the data labels.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nSeriesIndex - The series index from the array of the data used to build the chart from.
@@ -2860,7 +3165,7 @@
 	};
 
 	/**
-	 * Set the possible values for the position of the chart tick labels in relation to the main vertical label or the chart data values.
+	 * Sets the possible values for the position of the chart tick labels in relation to the main vertical label or the chart data values.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {TickLabelPosition} sTickLabelPosition - The type for the position of chart vertical tick labels.
@@ -2871,7 +3176,7 @@
 	};
 
 	/**
-	 * Set the possible values for the position of the chart tick labels in relation to the main horizontal label or the chart data values.
+	 * Sets the possible values for the position of the chart tick labels in relation to the main horizontal label or the chart data values.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {TickLabelPosition} sTickLabelPosition - The type for the position of chart horizontal tick labels.
@@ -2882,7 +3187,7 @@
 	};
 
 	/**
-	 * Specify major vertical gridline's visual properties.
+	 * Specifies the visual properties of the major vertical gridline.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
@@ -2893,7 +3198,7 @@
 	};
 
 	/**
-	 * Specify minor vertical gridline's visual properties.
+	 * Specifies the visual properties of the minor vertical gridline.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
@@ -2905,7 +3210,7 @@
 
 
 	/**
-	 * Specify major horizontal gridline's visual properties.
+	 * Specifies the visual properties of the major horizontal gridline.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
@@ -2916,7 +3221,7 @@
 	};
 
 	/**
-	 * Specify minor vertical gridline's visual properties.
+	 * Specifies the visual properties of the minor vertical gridline.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
@@ -2928,7 +3233,7 @@
 
 
 	/**
-	 * Specify font size for the horizontal axis labels.
+	 * Specifies the font size to the horizontal axis labels.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {pt} nFontSize - The text size value measured in points.
@@ -2938,7 +3243,7 @@
 	};
 
 	/**
-	 * Specify font size for the vertical axis labels.
+	 * Specifies the font size to the vertical axis labels.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {pt} nFontSize - The text size value measured in points.
@@ -2948,7 +3253,7 @@
 	};
 
 	/**
-	 * Apply set of visual settings to the chart.
+	 * Applies a set of visual settings to the chart.
 	 * @memberof ApiChart
 	 * @typeofeditors ["CSE"]
 	 * @param {number} nStyleIndex - The style index that will be set to the current chart.
@@ -2972,7 +3277,7 @@
 	//------------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Get the type of this class.
+	 * Returns a type of the ApiColor class.
 	 * @memberof ApiColor
 	 * @typeofeditors ["CSE"]
 	 * @returns {"color"}
@@ -2988,7 +3293,7 @@
 	//------------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Return a String value representing the object name.
+	 * Returns a type of the ApiName class.
 	 * @memberof ApiName
 	 * @typeofeditors ["CSE"]
 	 * @returns {string} 
@@ -3002,10 +3307,10 @@
 	};
 
 	/**
-	 * Set a String value representing the object name.
+	 * Sets a string value representing the object name.
 	 * @memberof ApiName
 	 * @typeofeditors ["CSE"]
-	 * @param {string} sName - New name for range.
+	 * @param {string} sName - New name for the range.
 	 * @returns {Error | true} - returns error if sName is invalid.
 	 */
 	ApiName.prototype.SetName = function (sName) {
@@ -3034,7 +3339,7 @@
 	});
 
 	/**
-	 * Delete the DefName object.
+	 * Deletes the DefName object.
 	 * @memberof ApiName
 	 * @typeofeditors ["CSE"]
 	 */
@@ -3043,10 +3348,10 @@
 	};
 
 	/**
-	 * Set the formula that the name is defined to refer to.
+	 * Sets a formula that the name is defined to refer to.
 	 * @memberof ApiName
 	 * @typeofeditors ["CSE"]
-	 * @param {string} sRef	- Must contain the sheet name, followed by sign ! and a range of cells. 
+	 * @param {string} sRef	- The range reference which must contain the sheet name, followed by sign ! and a range of cells. 
 	 * Example: "Sheet1!$A$1:$B$2".
 	 */
 	ApiName.prototype.SetRefersTo = function (sRef) {
@@ -3054,7 +3359,7 @@
 	};
 
 	/**
-	 * Return the formula that the name is defined to refer to.
+	 * Returns a formula that the name is defined to refer to.
 	 * @memberof ApiName
 	 * @typeofeditors ["CSE"]
 	 * @returns {string} 
@@ -3073,7 +3378,7 @@
 	});
 
 	/**
-	 * Return an ApiRange object by reference.
+	 * Returns the ApiRange object by its name.
 	 * @memberof ApiName
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
@@ -3099,7 +3404,7 @@
 	//------------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Return the comment text.
+	 * Returns the comment text.
 	 * @memberof ApiComment
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
@@ -3114,7 +3419,7 @@
 	});
 
 	/**
-	 * Delete an ApiComment object.
+	 * Deletes the ApiComment object.
 	 * @memberof ApiComment
 	 * @typeofeditors ["CSE"]
 	 */
@@ -3123,7 +3428,7 @@
 	};
 
 	/**
-	 * Returns the type of comment class.
+	 * Returns a type of the ApiComment class.
 	 * @memberof ApiComment
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
@@ -3131,6 +3436,53 @@
 	 ApiComment.prototype.GetClassType = function () {
 		return this.Comment.getType();
 	};
+
+	//------------------------------------------------------------------------------------------------------------------
+	//
+	// ApiAreas
+	//
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns a value that represents the number of objects in the collection.
+	 * @memberof ApiAreas
+	 * @typeofeditors ["CSE"]
+	 * @returns {number}
+	 */
+	ApiAreas.prototype.GetCount = function () {
+		return this.Items.length;
+	};
+	Object.defineProperty(ApiAreas.prototype, "Count", {
+		get: function () {
+			return this.GetCount();
+		}
+	});
+
+	/**
+	 * Returns a single object from a collection by its ID.
+	 * @memberof ApiAreas
+	 * @typeofeditors ["CSE"]
+	 * @param {number} ind - The index number of the object.
+	 * @returns {ApiRange}
+	 */
+	ApiAreas.prototype.GetItem = function (ind) {
+		return this.Items[ind - 1] || null;
+	};
+
+	/**
+	 * Returns the parent object for the specified collection.
+	 * @memberof ApiAreas
+	 * @typeofeditors ["CSE"]
+	 * @returns {number}
+	 */
+	 ApiAreas.prototype.GetParent = function () {
+		return this._parent;
+	};
+	Object.defineProperty(ApiAreas.prototype, "Parent", {
+		get: function () {
+			return this.GetParent();
+		}
+	});
 
 	Api.prototype["Format"]                = Api.prototype.Format;
 	Api.prototype["AddSheet"]              = Api.prototype.AddSheet;
@@ -3243,6 +3595,13 @@
 	ApiRange.prototype["Select"] = ApiRange.prototype.Select;
 	ApiRange.prototype["SetOrientation"] = ApiRange.prototype.SetOrientation;
 	ApiRange.prototype["GetOrientation"] = ApiRange.prototype.GetOrientation;
+	ApiRange.prototype["SetSort"] = ApiRange.prototype.SetSort;
+	ApiRange.prototype["Delete"] = ApiRange.prototype.Delete;
+	ApiRange.prototype["Insert"] = ApiRange.prototype.Insert;
+	ApiRange.prototype["AutoFit"] = ApiRange.prototype.AutoFit;
+	ApiRange.prototype["GetAreas"] = ApiRange.prototype.GetAreas;
+	ApiRange.prototype["Copy"] = ApiRange.prototype.Copy;
+	ApiRange.prototype["Paste"] = ApiRange.prototype.Paste;
 
 
 	ApiDrawing.prototype["GetClassType"]               =  ApiDrawing.prototype.GetClassType;
@@ -3299,6 +3658,11 @@
 	ApiComment.prototype["GetText"]              =  ApiComment.prototype.GetText;
 	ApiComment.prototype["Delete"]               =  ApiComment.prototype.Delete;
 	ApiComment.prototype["GetClassType"]         =  ApiComment.prototype.GetClassType;
+	
+
+	ApiAreas.prototype["GetCount"]               = ApiAreas.prototype.GetCount;
+	ApiAreas.prototype["GetItem"]                = ApiAreas.prototype.GetItem;
+	ApiAreas.prototype["GetParent"]              = ApiAreas.prototype.GetParent;
 
 
 	function private_SetCoords(oDrawing, oWorksheet, nExtX, nExtY, nFromCol, nColOffset,  nFromRow, nRowOffset, pos){

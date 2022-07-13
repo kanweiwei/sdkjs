@@ -521,6 +521,9 @@ CCellCommentator.prototype.isLockedComment = function(oComment, callbackFunc) {
 		this.drawingCtx.setFillStyle(this.commentIconColor);
 		var commentCell, mergedRange, nCol, nRow, x, y, metrics;
 		var aComments = this.model.aComments;
+		var zoom = this.worksheet.getZoom();
+		var size = AscCommon.AscBrowser.convertToRetinaValue(6, true) * zoom;
+		var borderW = 1;
 		for (var i = 0; i < aComments.length; ++i) {
 			commentCell = aComments[i];
 			if (this._checkHidden(commentCell) || !AscCommon.UserInfoParser.canViewComment(commentCell.sUserName)) {
@@ -538,9 +541,9 @@ CCellCommentator.prototype.isLockedComment = function(oComment, callbackFunc) {
 				x = metrics.left + metrics.width;
 				y = metrics.top;
 				this.drawingCtx.beginPath();
-				this.drawingCtx.moveTo(x - 7, y);
-				this.drawingCtx.lineTo(x - 1, y);
-				this.drawingCtx.lineTo(x - 1, y + 6);
+				this.drawingCtx.moveTo(x - (size + borderW), y);
+				this.drawingCtx.lineTo(x - borderW, y);
+				this.drawingCtx.lineTo(x - borderW, y + size);
 				this.drawingCtx.fill();
 			}
 		}
@@ -921,6 +924,10 @@ CCellCommentator.prototype.findComment = function(id) {
 };
 
 CCellCommentator.prototype.addComment = function(comment, bIsNotUpdate) {
+	if (this.model.getSheetProtection && this.model.getSheetProtection(Asc.c_oAscSheetProtectType.objects)) {
+		return;
+	}
+
 	var t = this;
 	var oComment = comment;
 	var bChange = false;
@@ -936,12 +943,7 @@ CCellCommentator.prototype.addComment = function(comment, bIsNotUpdate) {
 
 		var existComment = this.getComment(oComment.nCol, oComment.nRow, false, true);
 		if (existComment) {
-			if (!AscCommon.UserInfoParser.canViewComment(existComment.sUserName)) {
-				return;
-			} else {
-				oComment = existComment;
-				bChange = true;
-			}
+			return;
 		}
 	}
 
@@ -962,6 +964,10 @@ CCellCommentator.prototype.changeComment = function(id, oComment, bChangeCoords,
 	var comment = this.findComment(id);
 	if (null === comment)
 		return;
+
+	if (this.model.getSheetProtection && this.model.getSheetProtection(Asc.c_oAscSheetProtectType.objects)) {
+		return;
+	}
 
 	var onChangeCommentCallback = function (isSuccess) {
 		if (false === isSuccess)
@@ -1024,6 +1030,10 @@ CCellCommentator.prototype.removeComment = function(id, bNoEvent, bNoAscLock, bN
 	var comment = this.findComment(id);
 	if (null === comment)
 		return;
+
+	if (this.model.getSheetProtection && this.model.getSheetProtection(Asc.c_oAscSheetProtectType.objects)) {
+		return;
+	}
 
 	if (!AscCommon.UserInfoParser.canViewComment(comment.sUserName)) {
 		return;

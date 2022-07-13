@@ -91,6 +91,10 @@ CParagraphContentBase.prototype.GetParagraph = function()
 {
 	return this.Paragraph;
 };
+CParagraphContentBase.prototype.IsRun = function()
+{
+	return false;
+};
 CParagraphContentBase.prototype.Is_Empty = function()
 {
 	return true;
@@ -232,7 +236,7 @@ CParagraphContentBase.prototype.UpdateBookmarks = function(oManager)
 {
 };
 /**
- * @param oSpellCheckerEngine {CParagraphSpellCheckerEngine}
+ * @param oSpellCheckerEngine {CParagraphSpellCheckerCollector}
  * @param nDepth {number}
  */
 CParagraphContentBase.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
@@ -451,7 +455,7 @@ CParagraphContentBase.prototype.Get_ClassesByPos = function(Classes, ContentPos,
 {
 	Classes.push(this);
 };
-CParagraphContentBase.prototype.Get_PosByDrawing = function(Id, ContentPos, Depth)
+CParagraphContentBase.prototype.GetPosByDrawing = function(Id, ContentPos, Depth)
 {
 	return false;
 };
@@ -667,7 +671,7 @@ CParagraphContentBase.prototype.GetSearchElementId = function(bNext, bUseContent
 CParagraphContentBase.prototype.Check_NearestPos = function(ParaNearPos, Depth)
 {
 };
-CParagraphContentBase.prototype.Restart_CheckSpelling = function()
+CParagraphContentBase.prototype.RestartSpellCheck = function()
 {
 };
 CParagraphContentBase.prototype.GetDirectTextPr = function()
@@ -879,6 +883,10 @@ CParagraphContentBase.prototype.SetThisElementCurrentInParagraph = function()
 
 	this.Paragraph.Set_ParaContentPos(oContentPos, true, -1, -1, false);
 };
+CParagraphContentBase.prototype.createDuplicateForSmartArt = function(oPr)
+{
+	return this.Copy(false, oPr, false);
+};
 /**
  * Подсчитываем на сколько элементов разбивается данный элемент с заданным сепаратором
  * @param oEngine {CTextToTableEngine}
@@ -1013,8 +1021,8 @@ CParagraphContentWithContentBase.prototype.private_UpdateSpellChecking = functio
 {
 	if (this.Paragraph)
 	{
-		this.Paragraph.SpellChecker.ClearPausedEngine();
-		this.Paragraph.RecalcInfo.Set_Type_0_Spell(pararecalc_0_Spell_All);
+		this.Paragraph.SpellChecker.ClearCollector();
+		this.Paragraph.RecalcInfo.NeedSpellCheck();
 	}
 };
 CParagraphContentWithContentBase.prototype.Is_UseInDocument = function(Id)
@@ -1038,6 +1046,37 @@ CParagraphContentWithContentBase.prototype.Is_UseInDocument = function(Id)
 CParagraphContentWithContentBase.prototype.IsUseInDocument = function(sId)
 {
 	return this.Is_UseInDocument(sId);
+};
+CParagraphContentWithContentBase.prototype.SelectThisElement = function(nDirection)
+{
+	if (!this.Paragraph)
+		return false;
+
+	var ContentPos = this.Paragraph.Get_PosByElement(this);
+	if (!ContentPos)
+		return false;
+
+	var StartPos = ContentPos.Copy();
+	var EndPos   = ContentPos.Copy();
+
+	if (nDirection > 0)
+	{
+		this.Get_StartPos(StartPos, StartPos.Get_Depth() + 1);
+		this.Get_EndPos(true, EndPos, EndPos.Get_Depth() + 1);
+	}
+	else
+	{
+		this.Get_StartPos(EndPos, EndPos.Get_Depth() + 1);
+		this.Get_EndPos(true, StartPos, StartPos.Get_Depth() + 1);
+	}
+
+	this.Paragraph.Selection.Use   = true;
+	this.Paragraph.Selection.Start = false;
+	this.Paragraph.Set_ParaContentPos(StartPos, true, -1, -1);
+	this.Paragraph.Set_SelectionContentPos(StartPos, EndPos, false);
+	this.Paragraph.Document_SetThisElementCurrent(false);
+
+	return true;
 };
 CParagraphContentWithContentBase.prototype.protected_GetPrevRangeEndPos = function(LineIndex, RangeIndex)
 {
@@ -1137,6 +1176,10 @@ CParagraphContentWithParagraphLikeContent.prototype.Copy = function(Selected, oP
 	}
 
 	return NewElement;
+};
+CParagraphContentWithParagraphLikeContent.prototype.IsPlaceHolder = function()
+{
+	return false;
 };
 CParagraphContentWithParagraphLikeContent.prototype.GetSelectedContent = function(oSelectedContent)
 {
@@ -1439,6 +1482,7 @@ CParagraphContentWithParagraphLikeContent.prototype.Add_ToContent = function(Pos
     this.private_UpdateTrackRevisions();
 	this.private_UpdateDocumentOutline();
     this.private_CheckUpdateBookmarks([Item]);
+	this.private_UpdateSelectionPosOnAdd(Pos, 1);
 
     if (false !== UpdatePosition)
     {
@@ -1524,6 +1568,7 @@ CParagraphContentWithParagraphLikeContent.prototype.Remove_FromContent = functio
     this.private_UpdateTrackRevisions();
 	this.private_UpdateDocumentOutline();
 	this.private_CheckUpdateBookmarks(DeletedItems);
+	this.private_UpdateSelectionPosOnRemove(Pos, Count);
 
     if (false !== UpdatePosition)
     {
@@ -2243,11 +2288,17 @@ CParagraphContentWithParagraphLikeContent.prototype.Get_PosInParent = function(P
 };
 CParagraphContentWithParagraphLikeContent.prototype.Correct_Content = function()
 {
+	if (this.Paragraph && !this.Paragraph.CanCorrectContent())
+		return;
+
     if (this.Content.length <= 0)
         this.Add_ToContent(0, new ParaRun(this.GetParagraph(), false));
 };
 CParagraphContentWithParagraphLikeContent.prototype.CorrectContent = function()
 {
+	if (this.Paragraph && !this.Paragraph.CanCorrectContent())
+		return;
+
 	this.Correct_Content();
 };
 CParagraphContentWithParagraphLikeContent.prototype.UpdateBookmarks = function(oManager)
@@ -2271,6 +2322,101 @@ CParagraphContentWithParagraphLikeContent.prototype.RemoveTabsForTOC = function(
 CParagraphContentWithParagraphLikeContent.prototype.RemoveAll = function()
 {
 	this.Remove_FromContent(0, this.Content.length);
+};
+/**
+ * Обновляем позиции курсора и селекта во время добавления элементов
+ * @param nPosition {number}
+ * @param [nCount=1] {number}
+ */
+CParagraphContentWithParagraphLikeContent.prototype.private_UpdateSelectionPosOnAdd = function(nPosition, nCount)
+{
+	if (this.Content.length <= 0)
+	{
+		this.State.ContentPos   = 0;
+		this.Selection.StartPos = 0;
+		this.Selection.EndPos   = 0;
+		return;
+	}
+
+	if (undefined === nCount || null === nCount)
+		nCount = 1;
+
+	if (this.State.ContentPos >= nPosition)
+		this.State.ContentPos += nCount;
+
+	if (this.Selection.StartPos >= nPosition)
+		this.Selection.StartPos += nCount;
+
+	if (this.Selection.EndPos >= nPosition)
+		this.Selection.EndPos += nCount;
+
+	this.Selection.StartPos = Math.max(0, Math.min(this.Content.length - 1, this.Selection.StartPos));
+	this.Selection.EndPos   = Math.max(0, Math.min(this.Content.length - 1, this.Selection.EndPos));
+	this.State.ContentPos   = Math.max(0, Math.min(this.Content.length - 1, this.State.ContentPos));
+};
+/**
+ * Обновляем позиции курсора и селекта во время удаления элементов
+ * @param nPosition {number}
+ * @param nCount {number}
+ */
+CParagraphContentWithParagraphLikeContent.prototype.private_UpdateSelectionPosOnRemove = function(nPosition, nCount)
+{
+	if (this.State.ContentPos >= nPosition + nCount)
+	{
+		this.State.ContentPos -= nCount;
+	}
+	else if (this.State.ContentPos >= nPosition)
+	{
+		if (nPosition < this.Content.length)
+			this.State.ContentPos = nPosition;
+		else if (nPosition > 0)
+			this.State.ContentPos = nPosition - 1;
+		else
+			this.State.ContentPos = 0;
+	}
+
+	if (this.Selection.StartPos <= this.Selection.EndPos)
+	{
+		if (this.Selection.StartPos >= nPosition + nCount)
+			this.Selection.StartPos -= nCount;
+		else if (this.Selection.StartPos >= nPosition)
+			this.Selection.StartPos = nPosition;
+
+		if (this.Selection.EndPos >= nPosition + nCount)
+			this.Selection.EndPos -= nCount;
+		else if (this.Selection.EndPos >= nPosition)
+			this.Selection.StartPos = nPosition - 1;
+
+		if (this.Selection.StartPos > this.Selection.EndPos)
+		{
+			this.Selection.Use = false;
+			this.Selection.StartPos = 0;
+			this.Selection.EndPos   = 0;
+		}
+	}
+	else
+	{
+		if (this.Selection.EndPos >= nPosition + nCount)
+			this.Selection.EndPos -= nCount;
+		else if (this.Selection.EndPos >= nPosition)
+			this.Selection.EndPos = nPosition;
+
+		if (this.Selection.StartPos >= nPosition + nCount)
+			this.Selection.StartPos -= nCount;
+		else if (this.Selection.StartPos >= nPosition)
+			this.Selection.StartPos = nPosition - 1;
+
+		if (this.Selection.EndPos > this.Selection.StartPos)
+		{
+			this.Selection.Use = false;
+			this.Selection.StartPos = 0;
+			this.Selection.EndPos   = 0;
+		}
+	}
+
+	this.Selection.StartPos = Math.max(0, Math.min(this.Content.length - 1, this.Selection.StartPos));
+	this.Selection.EndPos   = Math.max(0, Math.min(this.Content.length - 1, this.Selection.EndPos));
+	this.State.ContentPos   = Math.max(0, Math.min(this.Content.length - 1, this.State.ContentPos));
 };
 CParagraphContentWithParagraphLikeContent.prototype.AddToContent = function(nPos, oItem, isUpdatePositions)
 {
@@ -2852,7 +2998,7 @@ CParagraphContentWithParagraphLikeContent.prototype.ConvertParaContentPosToRange
 
 	return nRangePos;
 };
-CParagraphContentWithParagraphLikeContent.prototype.Get_PosByDrawing = function(Id, ContentPos, Depth)
+CParagraphContentWithParagraphLikeContent.prototype.GetPosByDrawing = function(Id, ContentPos, Depth)
 {
     var Count = this.Content.length;
     for ( var CurPos = 0; CurPos < Count; CurPos++ )
@@ -2861,7 +3007,7 @@ CParagraphContentWithParagraphLikeContent.prototype.Get_PosByDrawing = function(
 
         ContentPos.Update( CurPos, Depth );
 
-        if ( true === Element.Get_PosByDrawing(Id, ContentPos, Depth + 1) )
+        if ( true === Element.GetPosByDrawing(Id, ContentPos, Depth + 1) )
             return true;
     }
 
@@ -2984,7 +3130,7 @@ CParagraphContentWithParagraphLikeContent.prototype.Get_WordStartPos = function(
 	this.Content[CurPos].Get_WordStartPos(SearchPos, ContentPos, Depth + 1, UseContentPos);
 
 	if (true === SearchPos.UpdatePos)
-		SearchPos.Pos.Update(CurPos, Depth);
+		SearchPos.Pos.Update2(CurPos, Depth);
 
 	if (true === SearchPos.Found)
 		return;
@@ -3000,7 +3146,7 @@ CParagraphContentWithParagraphLikeContent.prototype.Get_WordStartPos = function(
 	if (CurPos >= 0 && this.Content[CurPos + 1].IsStopCursorOnEntryExit())
 	{
 		this.Content[CurPos].Get_EndPos(false, SearchPos.Pos, Depth + 1);
-		SearchPos.Pos.Update(CurPos, Depth);
+		SearchPos.Pos.Update2(CurPos, Depth);
 		SearchPos.Found = true;
 		return;
 	}
@@ -3012,7 +3158,7 @@ CParagraphContentWithParagraphLikeContent.prototype.Get_WordStartPos = function(
 		this.Content[CurPos].Get_WordStartPos(SearchPos, ContentPos, Depth + 1, false);
 
 		if (true === SearchPos.UpdatePos)
-			SearchPos.Pos.Update(CurPos, Depth);
+			SearchPos.Pos.Update2(CurPos, Depth);
 		else
 			SearchPos.UpdatePos = OldUpdatePos;
 
@@ -3030,7 +3176,7 @@ CParagraphContentWithParagraphLikeContent.prototype.Get_WordStartPos = function(
 		if (CurPos >= 0 && this.Content[CurPos + 1].IsStopCursorOnEntryExit())
 		{
 			this.Content[CurPos].Get_EndPos(false, SearchPos.Pos, Depth + 1);
-			SearchPos.Pos.Update(CurPos, Depth);
+			SearchPos.Pos.Update2(CurPos, Depth);
 			SearchPos.Found = true;
 			return;
 		}
@@ -3608,17 +3754,17 @@ CParagraphContentWithParagraphLikeContent.prototype.IsSelectionUse = function()
     return this.State.Selection.Use;
 };
 //----------------------------------------------------------------------------------------------------------------------
-// Spelling
+// SpellCheck
 //----------------------------------------------------------------------------------------------------------------------
-CParagraphContentWithParagraphLikeContent.prototype.Restart_CheckSpelling = function()
+CParagraphContentWithParagraphLikeContent.prototype.RestartSpellCheck = function()
 {
-    for (var nIndex = 0, nCount = this.Content.length; nIndex < nCount; nIndex++)
+    for (let nIndex = 0, nCount = this.Content.length; nIndex < nCount; ++nIndex)
     {
-        this.Content[nIndex].Restart_CheckSpelling();
+        this.Content[nIndex].RestartSpellCheck();
     }
 };
 /**
- * @param oSpellCheckerEngine {CParagraphSpellCheckerEngine}
+ * @param oSpellCheckerEngine {CParagraphSpellCheckerCollector}
  * @param nDepth {number}
  */
 CParagraphContentWithParagraphLikeContent.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
@@ -3629,8 +3775,6 @@ CParagraphContentWithParagraphLikeContent.prototype.CheckSpelling = function(oSp
 	var nStartPos = 0;
 	if (oSpellCheckerEngine.IsFindStart())
 		nStartPos = oSpellCheckerEngine.GetPos(nDepth);
-	else
-		this.SpellingMarks = [];
 
     for (var nPos = nStartPos, nCount = this.Content.length; nPos < nCount; ++nPos)
     {
@@ -3643,38 +3787,16 @@ CParagraphContentWithParagraphLikeContent.prototype.CheckSpelling = function(oSp
         	return;
     }
 };
-CParagraphContentWithParagraphLikeContent.prototype.Add_SpellCheckerElement = function(Element, Start, Depth)
-{
-    if (true === Start)
-        this.Content[Element.StartPos.Get(Depth)].Add_SpellCheckerElement(Element, Start, Depth + 1);
-    else
-        this.Content[Element.EndPos.Get(Depth)].Add_SpellCheckerElement(Element, Start, Depth + 1);
-
-    this.SpellingMarks.push( new CParagraphSpellingMark( Element, Start, Depth ) );
-};
-CParagraphContentWithParagraphLikeContent.prototype.Remove_SpellCheckerElement = function(Element)
-{
-    var Count = this.SpellingMarks.length;
-    for (var Pos = 0; Pos < Count; Pos++)
-    {
-        var SpellingMark = this.SpellingMarks[Pos];
-        if (Element === SpellingMark.Element)
-        {
-            this.SpellingMarks.splice(Pos, 1);
-            break;
-        }
-    }
-};
-CParagraphContentWithParagraphLikeContent.prototype.Clear_SpellingMarks = function()
-{
-    this.SpellingMarks = [];
-};
 //----------------------------------------------------------------------------------------------------------------------
 // Search and Replace
 //----------------------------------------------------------------------------------------------------------------------
 CParagraphContentWithParagraphLikeContent.prototype.Search = function(oParaSearch)
 {
 	this.SearchMarks = [];
+
+	if (this.IsPlaceHolder())
+		return oParaSearch.Reset();
+
 	for (var nPos = 0, nContentLen = this.Content.length; nPos < nContentLen; ++nPos)
 	{
 		this.Content[nPos].Search(oParaSearch);
@@ -4022,37 +4144,6 @@ CParagraphContentWithParagraphLikeContent.prototype.Is_UseInParagraph = function
 	var ContentPos = this.Paragraph.Get_PosByElement(this);
 	if (!ContentPos)
 		return false;
-
-	return true;
-};
-CParagraphContentWithParagraphLikeContent.prototype.SelectThisElement = function(nDirection)
-{
-	if (!this.Paragraph)
-		return false;
-
-	var ContentPos = this.Paragraph.Get_PosByElement(this);
-	if (!ContentPos)
-		return false;
-
-	var StartPos = ContentPos.Copy();
-	var EndPos   = ContentPos.Copy();
-
-	if (nDirection > 0)
-	{
-		this.Get_StartPos(StartPos, StartPos.Get_Depth() + 1);
-		this.Get_EndPos(true, EndPos, EndPos.Get_Depth() + 1);
-	}
-	else
-	{
-		this.Get_StartPos(EndPos, EndPos.Get_Depth() + 1);
-		this.Get_EndPos(true, StartPos, StartPos.Get_Depth() + 1);
-	}
-
-	this.Paragraph.Selection.Use   = true;
-	this.Paragraph.Selection.Start = false;
-	this.Paragraph.Set_ParaContentPos(StartPos, true, -1, -1);
-	this.Paragraph.Set_SelectionContentPos(StartPos, EndPos, false);
-	this.Paragraph.Document_SetThisElementCurrent(false);
 
 	return true;
 };

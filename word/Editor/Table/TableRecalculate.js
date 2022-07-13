@@ -473,7 +473,7 @@ CTable.prototype.private_RecalculateGrid = function()
 			}
 
 			if (!oPageFields)
-				oPageFields = this.Parent.Get_ColumnFields ? this.Parent.Get_ColumnFields(this.Get_Index(), this.Get_AbsoluteColumn(this.PageNum), this.GetAbsolutePage(this.PageNum)) : this.Parent.Get_PageFields(this.private_GetRelativePageIndex(this.PageNum));
+				oPageFields = this.Parent.Get_ColumnFields ? this.Parent.Get_ColumnFields(this.Get_Index(), this.Get_AbsoluteColumn(this.PageNum), this.GetAbsolutePage(this.PageNum)) : this.Parent.Get_PageFields(this.private_GetRelativePageIndex(this.PageNum), this.Parent.IsHdrFtr());
 		}
 
 		var oFramePr = this.GetFramePr();
@@ -1747,12 +1747,14 @@ CTable.prototype.private_RecalculatePageXY = function(CurPage)
 };
 CTable.prototype.private_RecalculatePositionX = function(CurPage)
 {
+	var isHdtFtr = this.Parent.IsHdrFtr();
+
     var TablePr = this.Get_CompiledPr(false).TablePr;
     var PageLimits = this.Parent.Get_PageLimits(this.PageNum);
-    var PageFields = this.Parent.Get_PageFields(this.PageNum);
+    var PageFields = this.Parent.Get_PageFields(this.PageNum, isHdtFtr);
 
-    var LD_PageLimits = this.LogicDocument.Get_PageLimits( this.Get_StartPage_Absolute() );
-    var LD_PageFields = this.LogicDocument.Get_PageFields( this.Get_StartPage_Absolute() );
+	var LD_PageLimits = this.LogicDocument.Get_PageLimits(this.Get_StartPage_Absolute());
+	var LD_PageFields = this.LogicDocument.Get_PageFields(this.Get_StartPage_Absolute(), isHdtFtr);
 
     if ( true === this.Is_Inline() )
     {
@@ -1904,7 +1906,8 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
     var Y = StartPos.Y;
     var TableHeight = 0;
 
-    if (this.LogicDocument && this.LogicDocument.IsDocumentEditor() && this.IsInline())
+    var oLogicDocument = this.GetLogicDocument();
+    if (oLogicDocument && oLogicDocument.IsDocumentEditor() && this.IsInline())
 	{
 		var nTableX_min = -1;
 		var nTableX_max = -1;
@@ -2367,7 +2370,7 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
                         else if ( vertalignjc_Center === VAlign )
                             Dy = (CellHeight - ContentHeight) / 2;
 
-                        Cell.Content.Shift( CellPageIndex, 0, Dy );
+                        Cell.ShiftCellContent(CellPageIndex, 0, Dy);
                     }
 
                     Cell.Temp.Y_VAlign_offset[CellPageIndex] = Dy;
@@ -2654,7 +2657,7 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
 
                 if ( true === bCanShift )
                 {
-                    Cell.Content.Shift( 0, ShiftDx, ShiftDy );
+					Cell.ShiftCell(0, ShiftDx, ShiftDy);
                     Cell.Content.UpdateEndInfo();
                 }
                 else
@@ -3110,6 +3113,7 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
         }
     }
 
+    var nCompatibilityMode = oLogicDocument && oLogicDocument.GetCompatibilityMode ? oLogicDocument.GetCompatibilityMode() : AscCommon.document_compatibility_mode_Current;
     // Сделаем вертикальное выравнивание ячеек в таблице. Делаем как Word, если ячейка разбилась на несколько
     // страниц, тогда вертикальное выравнивание применяем только к первой странице.
     // Делаем это не в общем цикле, потому что объединенные вертикально ячейки могут вносить поправки в значения
@@ -3174,14 +3178,14 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
                 CellHeight = CellMetrics.X_cell_end - CellMetrics.X_cell_start - CellMar.Left.W - CellMar.Right.W;
             }
 
-            if (CellHeight - ContentHeight > 0.001)
+            if (CellHeight - ContentHeight > 0.001 || nCompatibilityMode <= AscCommon.document_compatibility_mode_Word14)
             {
                 if (vertalignjc_Bottom === VAlign)
                     Dy = CellHeight - ContentHeight;
                 else if (vertalignjc_Center === VAlign)
                     Dy = (CellHeight - ContentHeight) / 2;
 
-                Cell.Content.Shift(CellPageIndex, 0, Dy);
+                Cell.ShiftCellContent(CellPageIndex, 0, Dy);
             }
 
             Cell.Temp.Y_VAlign_offset[CellPageIndex] = Dy;
@@ -3311,10 +3315,15 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
 };
 CTable.prototype.private_RecalculatePositionY = function(CurPage)
 {
-    var PageLimits = this.Parent.Get_PageLimits(this.PageNum + CurPage);
-    var PageFields = this.Parent.Get_PageFields(this.PageNum + CurPage);
-    var LD_PageFields = this.LogicDocument.Get_PageFields(this.Get_StartPage_Absolute() + CurPage);
-    var LD_PageLimits = this.LogicDocument.Get_PageLimits(this.Get_StartPage_Absolute() + CurPage);
+	var isHdrFtr = this.Parent.IsHdrFtr();
+	var nPageRel = this.GetRelativePage(CurPage);
+	var nPageAbs = this.GetAbsolutePage(CurPage);
+
+	var PageLimits = this.Parent.Get_PageLimits(nPageRel);
+	var PageFields = this.Parent.Get_PageFields(nPageRel, isHdrFtr);
+
+	var LD_PageFields = this.LogicDocument.Get_PageFields(nPageAbs, isHdrFtr);
+	var LD_PageLimits = this.LogicDocument.Get_PageLimits(nPageAbs);
 
     if ( true === this.Is_Inline() && 0 === CurPage )
     {
@@ -3386,7 +3395,7 @@ CTable.prototype.private_RecalculateSkipPage = function(CurPage)
 };
 CTable.prototype.private_RecalculatePercentWidth = function()
 {
-    return this.XLimit - this.X - this.GetTableOffsetCorrection() + this.GetRightTableOffsetCorrection();
+    return this.TableWidthRange - this.GetTableOffsetCorrection() + this.GetRightTableOffsetCorrection();
 };
 CTable.prototype.private_RecalculateGridCols = function()
 {

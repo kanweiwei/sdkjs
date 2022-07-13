@@ -46,12 +46,16 @@
 
     AscDFH.changesFactory[AscDFH.historyitem_ShapeSetMacro]   = AscDFH.CChangesDrawingsString;
     AscDFH.changesFactory[AscDFH.historyitem_ShapeSetTextLink]   = AscDFH.CChangesDrawingsString;
+    AscDFH.changesFactory[AscDFH.historyitem_ShapeSetModelId]   = AscDFH.CChangesDrawingsString;
+
+    AscDFH.changesFactory[AscDFH.historyitem_ShapeSetFLocksText]   = AscDFH.CChangesDrawingsBool;
 
 
 
     AscDFH.changesFactory[AscDFH.historyitem_AutoShapes_SetDrawingBasePos] = AscDFH.CChangesDrawingsObjectNoId;
     AscDFH.changesFactory[AscDFH.historyitem_AutoShapes_SetDrawingBaseExt] = AscDFH.CChangesDrawingsObjectNoId;
     AscDFH.changesFactory[AscDFH.historyitem_AutoShapes_SetDrawingBaseCoors] = AscDFH.CChangesDrawingsObjectNoId;
+    AscDFH.changesFactory[AscDFH.historyitem_ShapeSetClientData] = AscDFH.CChangesDrawingsObjectNoId;
 
 
     var drawingsChangesMap = window['AscDFH'].drawingsChangesMap;
@@ -125,6 +129,9 @@
             }
         }
     };
+    drawingsChangesMap[AscDFH.historyitem_ShapeSetClientData] = function(oClass, value){
+        oClass.clientData = value;
+    };
 
 
     drawingsChangesMap[AscDFH.historyitem_ShapeSetMacro]            = function(oClass, value){
@@ -133,10 +140,17 @@
     drawingsChangesMap[AscDFH.historyitem_ShapeSetTextLink]         = function(oClass, value){
         oClass.textLink = value;
     };
+    drawingsChangesMap[AscDFH.historyitem_ShapeSetModelId]         = function(oClass, value){
+        oClass.modelId = value;
+    };
+    drawingsChangesMap[AscDFH.historyitem_ShapeSetFLocksText]         = function(oClass, value){
+        oClass.fLocksText = value;
+    };
 
     AscDFH.drawingsConstructorsMap[AscDFH.historyitem_AutoShapes_SetDrawingBasePos] = CDrawingBaseCoordsWritable;
     AscDFH.drawingsConstructorsMap[AscDFH.historyitem_AutoShapes_SetDrawingBaseExt] = CDrawingBaseCoordsWritable;
     AscDFH.drawingsConstructorsMap[AscDFH.historyitem_AutoShapes_SetDrawingBaseCoors] = CDrawingBasePosWritable;
+    AscDFH.drawingsConstructorsMap[AscDFH.historyitem_ShapeSetClientData] = CClientData;
 
     var LOCKS_MASKS =
     {
@@ -257,6 +271,23 @@
         this.cx           = AscFormat.readDouble(Reader);
         this.cy           = AscFormat.readDouble(Reader);
     };
+
+    function CClientData(fLocksWithSheet, fPrintsWithSheet) {
+        this.fLocksWithSheet = fLocksWithSheet !== undefined ? fLocksWithSheet : null;
+        this.fPrintsWithSheet = fPrintsWithSheet !== undefined ? fPrintsWithSheet : null;
+    }
+    CClientData.prototype.Write_ToBinary = function(Writer) {
+        AscFormat.writeBool(Writer, this.fLocksWithSheet);
+        AscFormat.writeBool(Writer, this.fPrintsWithSheet);
+    };
+    CClientData.prototype.Read_FromBinary = function(Reader) {
+        this.fLocksWithSheet  = AscFormat.readBool(Reader);
+        this.fPrintsWithSheet = AscFormat.readBool(Reader);
+    };
+    CClientData.prototype.createDuplicate = function() {
+        return new CClientData(this.fLocksWithSheet, this.fPrintsWithSheet);
+    };
+
     /**
      * Class represent bounds graphical object
      * @param {number} l
@@ -371,7 +402,9 @@
         }
         return oRes;
     };
-
+    CGraphicBounds.prototype.hit = function(x, y) {
+        return x >= this.l && x <= this.r && y >= this.t && y <= this.b;  
+    };
 
     function CCopyObjectProperties()
     {
@@ -397,6 +430,9 @@
         this.locks = 0;
         this.macro = null;
         this.textLink = null;
+        this.modelId = null;
+        this.fLocksText = null;
+        this.clientData = null;
 
         /*Calculated fields*/
         this.posX = null;
@@ -422,15 +458,13 @@
         this.cropObject = null;
         this.Lock = new AscCommon.CLock();
         this.setRecalculateInfo();
-        if(this.Id === null) {
-            this.Id = AscCommon.g_oIdCounter.Get_NewId();
-            AscCommon.g_oTableId.Add(this, this.Id);
-        }
     }
-
     CGraphicObjectBase.prototype = Object.create(CBaseObject.prototype);
     CGraphicObjectBase.prototype.constructor = CGraphicObjectBase;
 
+    CGraphicObjectBase.prototype.notAllowedWithoutId = function() {
+        return true;
+    };
     /**
      * Create a scheme color
      * @memberof CGraphicObjectBase
@@ -441,15 +475,11 @@
         this.calculateSnapArrays(aCheckX, aCheckY, this.localTransform);
         return new CGraphicBounds(Math.min.apply(Math, aCheckX), Math.min.apply(Math, aCheckY), Math.max.apply(Math, aCheckX), Math.max.apply(Math, aCheckY));
     };
-
-
     /**
      * Set default recalculate info
      * @memberof CGraphicObjectBase
      */
     CGraphicObjectBase.prototype.setRecalculateInfo = function(){};
-
-
     /**
      * Get object bounds for defining group size
      * @memberof CGraphicObjectBase
@@ -468,7 +498,6 @@
             return new CGraphicBounds(xc - vc, yc - hc, xc + vc, yc + hc);
         }
     };
-
     /**
      * Normalize a size object in group
      * @memberof CGraphicObjectBase
@@ -488,13 +517,42 @@
             new_off_y = scale_scale_coefficients.cy * (xfrm.offY - this.group.spPr.xfrm.chOffY);
             new_ext_x = scale_scale_coefficients.cx * xfrm.extX;
             new_ext_y = scale_scale_coefficients.cy * xfrm.extY;
+            var txXfrm = this.txXfrm;
+            if (txXfrm) {
+
+                var new_tx_off_x = scale_scale_coefficients.cx * txXfrm.offX;
+                var new_tx_off_y = scale_scale_coefficients.cy * txXfrm.offY;
+                var new_tx_ext_x = scale_scale_coefficients.cx * txXfrm.extX;
+                var new_tx_ext_y = scale_scale_coefficients.cy * txXfrm.extY;
+
+                Math.abs(new_tx_off_x - txXfrm.offX) > AscFormat.MOVE_DELTA && txXfrm.setOffX(new_tx_off_x);
+                Math.abs(new_tx_off_y - txXfrm.offY) > AscFormat.MOVE_DELTA && txXfrm.setOffY(new_tx_off_y);
+                Math.abs(new_tx_ext_x - txXfrm.extX) > AscFormat.MOVE_DELTA && txXfrm.setExtX(new_tx_ext_x);
+                Math.abs(new_tx_ext_y - txXfrm.extY) > AscFormat.MOVE_DELTA && txXfrm.setExtY(new_tx_ext_y);
+            }
         }
-        Math.abs(new_off_x - xfrm.offX) > AscFormat.MOVE_DELTA &&  xfrm.setOffX(new_off_x);
-        Math.abs(new_off_y - xfrm.offY) > AscFormat.MOVE_DELTA &&  xfrm.setOffY(new_off_y);
-        Math.abs(new_ext_x - xfrm.extX) > AscFormat.MOVE_DELTA &&  xfrm.setExtX(new_ext_x);
-        Math.abs(new_ext_y - xfrm.extY) > AscFormat.MOVE_DELTA &&  xfrm.setExtY(new_ext_y);
+        Math.abs(new_off_x - xfrm.offX) > AscFormat.MOVE_DELTA && xfrm.setOffX(new_off_x);
+        Math.abs(new_off_y - xfrm.offY) > AscFormat.MOVE_DELTA && xfrm.setOffY(new_off_y);
+        Math.abs(new_ext_x - xfrm.extX) > AscFormat.MOVE_DELTA && xfrm.setExtX(new_ext_x);
+        Math.abs(new_ext_y - xfrm.extY) > AscFormat.MOVE_DELTA && xfrm.setExtY(new_ext_y);
     };
 
+    CGraphicObjectBase.prototype.checkHiddenInAnimation = function() {
+        if(AscCommonSlide.Slide && (this.parent instanceof AscCommonSlide.Slide)) {
+            var oGrObjects = this.parent.graphicObjects;
+            if(oGrObjects) {
+                if(oGrObjects.isSlideShow()) {
+                    var oAnimPlayer = oGrObjects.getAnimationPlayer();
+                    if(oAnimPlayer) {
+                        if(oAnimPlayer.isDrawingHidden(this.Get_Id())) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    };
     /**
      * Check point hit to bounds object
      * @memberof CGraphicObjectBase
@@ -502,6 +560,9 @@
     CGraphicObjectBase.prototype.checkHitToBounds = function(x, y) {
         if(this.parent && (this.parent.Get_ParentTextTransform  && this.parent.Get_ParentTextTransform())) {
             return true;
+        }
+        if(this.checkHiddenInAnimation && this.checkHiddenInAnimation()) {
+            return false;
         }
 
         var _x, _y;
@@ -529,7 +590,6 @@
         }
         return false;
     };
-
     /**
      * Internal method for calculating snap arrays
      * @param {Array} snapArrayX
@@ -552,7 +612,6 @@
         snapArrayX.push(t.TransformPointX(0, this.extY));
         snapArrayY.push(t.TransformPointY(0, this.extY));
     };
-
     /**
      * Public method for calculating snap arrays
      * @memberof CGraphicObjectBase
@@ -563,7 +622,6 @@
         this.snapArrayY.length = 0;
         this.calculateSnapArrays(this.snapArrayX, this.snapArrayY, null);
     };
-
     CGraphicObjectBase.prototype.setLocks = function(nLocks){
         AscCommon.History.Add( new AscDFH.CChangesDrawingsLong(this, AscDFH.historyitem_AutoShapes_SetLocks, this.locks, nLocks));
         this.locks = nLocks;
@@ -588,12 +646,122 @@
         History.Add(new AscDFH.CChangesDrawingsString(this, AscDFH.historyitem_ShapeSetMacro, this.macro, sMacroName));
         this.macro = sMacroName;
     };
+    CGraphicObjectBase.prototype.setModelId = function(sModelId)
+    {
+        History.Add(new AscDFH.CChangesDrawingsString(this, AscDFH.historyitem_ShapeSetModelId, this.modelId, sModelId));
+        this.modelId = sModelId;
+    };
+    CGraphicObjectBase.prototype.setFLocksText = function(bLock)
+    {
+        History.Add(new AscDFH.CChangesDrawingsBool(this, AscDFH.historyitem_ShapeSetFLocksText, this.fLocksText, bLock));
+        this.fLocksText = bLock;
+    };
+    CGraphicObjectBase.prototype.setClientData = function(oClientData)
+    {
+        History.Add(new AscDFH.CChangesDrawingsObjectNoId(this, AscDFH.historyitem_ShapeSetClientData, this.clientData, oClientData));
+        this.clientData = oClientData;
+    };
+    CGraphicObjectBase.prototype.checkClientData = function()
+    {
+        if(!this.clientData)
+        {
+            this.setClientData(new CClientData());
+        }
+    };
+    CGraphicObjectBase.prototype.getProtectionLockText = function()
+    {
+        return null;
+    };
+    CGraphicObjectBase.prototype.getProtectionLocked = function()
+    {
+        if(this.group) {
+            return this.group.getProtectionLocked();
+        }
+        if(!this.clientData) {
+            return true;
+        }
+        return this.clientData.fLocksWithSheet !== false;
+    };
+    CGraphicObjectBase.prototype.getProtectionPrint = function()
+    {
+        if(this.group) {
+            return this.group.getProtectionPrint();
+        }
+        if(!this.clientData) {
+            return false;
+        }
+        return this.clientData.fPrintsWithSheet !== false;
+    };
+
+    CGraphicObjectBase.prototype.setProtectionLockText = function(bVal)
+    {
+        if(this.getObjectType() === AscDFH.historyitem_type_Shape)
+        {
+            if(bVal === true || bVal === false)
+            {
+                var bValToSet = bVal ? null : false;
+                if(this.fLocksText !== bValToSet)
+                {
+                    this.setFLocksText(bValToSet);
+                }
+            }
+        }
+    };
+    CGraphicObjectBase.prototype.setProtectionLocked = function(bVal)
+    {
+        if(bVal === true || bVal === false)
+        {
+            if(this.group)
+            {
+                this.group.setProtectionLocked(bVal);
+                return
+            }
+            this.checkClientData();
+            var bValToSet = bVal ? undefined : false;
+            if(this.clientData.fLocksWithSheet !== bValToSet)
+            {
+                var oData = this.clientData.createDuplicate();
+                oData.fLocksWithSheet = bValToSet;
+                this.setClientData(oData);
+            }
+        }
+    };
+    CGraphicObjectBase.prototype.setProtectionPrint = function(bVal)
+    {
+        if(bVal === true || bVal === false)
+        {
+            if(this.group)
+            {
+                this.group.setProtectionPrint(bVal);
+                return
+            }
+            this.checkClientData();
+            var bValToSet = bVal ? undefined : false;
+            if(this.clientData.fPrintsWithSheet !== bValToSet)
+            {
+                var oData = this.clientData.createDuplicate();
+                oData.fPrintsWithSheet = bValToSet;
+                this.setClientData(oData);
+            }
+        }
+    };
+
     CGraphicObjectBase.prototype.assignMacro = function(sGuid)
     {
-        if(typeof sGuid === "string" && sGuid.length > 0) {
+        if(Array.isArray(this.spTree))
+        {
+            for(var nSp = 0; nSp < this.spTree.length; ++nSp)
+            {
+                this.spTree[nSp].assignMacro(sGuid);
+            }
+            return;
+        }
+        if(typeof sGuid === "string" && sGuid.length > 0)
+        {
             this.setMacro(AscFormat.MACRO_PREFIX + sGuid);
         }
-        else {
+        else
+        {
             this.setMacro(null);
         }
     };
@@ -604,31 +772,63 @@
     };
     CGraphicObjectBase.prototype.hasMacro = function()
     {
-        if(typeof this.macro === "string" && this.macro.length > 0) {
+        var sMacro = this.getMacroOwnOrGroup();
+        if(sMacro !== null) {
             return true;
         }
         return false;
     };
-
+    CGraphicObjectBase.prototype.getMacroOwnOrGroup = function()
+    {
+        if(Array.isArray(this.spTree))
+        {
+            if(this.spTree.length > 0)
+            {
+                var oSp = this.spTree[0];
+                var sMacro = oSp.getMacroOwnOrGroup();
+                if(!sMacro)
+                {
+                    return null;
+                }
+                for(nSp = 1; nSp < this.spTree.length; ++nSp)
+                {
+                    if(sMacro !== this.spTree[nSp].getMacroOwnOrGroup())
+                    {
+                        return null;
+                    }
+                }
+                return sMacro;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        if(typeof this.macro === "string" && this.macro.length > 0)
+        {
+            return this.macro;
+        }
+        return null;
+    };
     CGraphicObjectBase.prototype.hasJSAMacro = function()
     {
-        if(typeof this.macro === "string" && this.macro.indexOf(AscFormat.MACRO_PREFIX) === 0) {
+        var sMacro = this.getMacroOwnOrGroup();
+        if(typeof sMacro === "string" && sMacro.indexOf(AscFormat.MACRO_PREFIX) === 0) {
             return true;
         }
         return false;
     };
     CGraphicObjectBase.prototype.getJSAMacroId = function()
     {
-        if(typeof this.macro === "string" && this.macro.indexOf(AscFormat.MACRO_PREFIX) === 0) {
-            return this.macro.slice(AscFormat.MACRO_PREFIX.length);
+        var sMacro = this.getMacroOwnOrGroup();
+        if(typeof sMacro === "string" && sMacro.indexOf(AscFormat.MACRO_PREFIX) === 0) {
+            return sMacro.slice(AscFormat.MACRO_PREFIX.length);
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.getLockValue = function(nMask) {
         return  !!((this.locks & nMask) && (this.locks & (nMask << 1)));
     };
-
     CGraphicObjectBase.prototype.setLockValue = function(nMask, bValue) {
         if(!AscFormat.isRealBool(bValue)) {
             this.setLocks((~nMask) & this.locks);
@@ -637,7 +837,6 @@
             this.setLocks(this.locks | nMask | (bValue ? nMask << 1 : 0));
         }
     };
-
     CGraphicObjectBase.prototype.getNoGrp = function(){
         return this.getLockValue(LOCKS_MASKS.noGrp);
     };
@@ -689,10 +888,22 @@
     CGraphicObjectBase.prototype.setNoChangeAspect = function(bValue){
         return this.setLockValue(LOCKS_MASKS.noChangeAspect, bValue);
     };
+    CGraphicObjectBase.prototype.canEditGeometry = function(){
+        return this.getObjectType() === AscDFH.historyitem_type_Shape &&
+            !this.isPlaceholder() &&
+            this.getNoEditPoints() !== true &&
+            !!(this.spPr && this.spPr.geometry) && !(this.isObjectInSmartArt()); // todo: functionality not available in microsoft for smartart shapes, but the OOX format supports it, currently blocked due to resizing blocking
+    };
     CGraphicObjectBase.prototype.canRotate = function() {
+        if(!this.canEdit()) {
+            return false;
+        }
         return this.getNoRot() === false;
     };
     CGraphicObjectBase.prototype.canResize = function() {
+        if(!this.canEdit()) {
+            return false;
+        }
         return this.getNoResize() === false;
     };
     CGraphicObjectBase.prototype.canMove = function() {
@@ -702,16 +913,28 @@
         {
             return false;
         }
+        if(!this.canEdit()) {
+            return false;
+        }
         return this.getNoMove() === false;
     };
     CGraphicObjectBase.prototype.canGroup = function() {
+        if(!this.canEdit()) {
+            return false;
+        }
         return this.getNoGrp() === false;
     };
     CGraphicObjectBase.prototype.canUnGroup = function() {
-        return this.getNoUngrp() === false;
+        if(!this.canEdit()) {
+            return false;
+        }
+        return (this.getObjectType() === AscDFH.historyitem_type_GroupShape || this.getObjectType() === AscDFH.historyitem_type_SmartArt && this.drawing)  && this.getNoUngrp() === false;
     };
     CGraphicObjectBase.prototype.canChangeAdjustments = function () {
-        return this.getNoAdjustHandles() === false;
+        if(!this.canEdit()) {
+            return false;
+        }
+        return !this.isObjectInSmartArt() && this.getNoAdjustHandles() === false;
     };
     CGraphicObjectBase.prototype.Reassign_ImageUrls = function(mapUrl){
         var blip_fill;
@@ -741,10 +964,18 @@
             }
         }
     };
-
     CGraphicObjectBase.prototype.getAllFonts = function(mapUrl){
     };
-
+    CGraphicObjectBase.prototype.collectEquations3 = function(aEquations) {
+        if(Array.isArray(this.spTree)) {
+            for(var nSp = 0; nSp < this.spTree.length; ++nSp) {
+                this.spTree[nSp].collectEquations3(aEquations);
+            }
+        }
+        if(this.m_oMathObject) {
+            aEquations.push(this);
+        }
+    };
     CGraphicObjectBase.prototype.getOuterShdw = function(){
         if(this.spPr && this.spPr.effectProps && this.spPr.effectProps.EffectLst && this.spPr.effectProps.EffectLst.outerShdw)
         {
@@ -752,7 +983,6 @@
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.recalculateShdw = function(){
 
         this.shdwSp = null;
@@ -771,15 +1001,36 @@
                     shape.spPr.setGeometry(geometry.createDuplicate());
                     shape.spPr.geometry.setParent(shape.spPr);
                 }
+                var oShadowFill;
                 if(outerShdw.color)
                 {
-                    shape.spPr.Fill = AscFormat.CreateUniFillByUniColorCopy(outerShdw.color);
+                    oShadowFill = AscFormat.CreateUniFillByUniColorCopy(outerShdw.color);
                 }
                 else
                 {
-                    shape.spPr.Fill = AscFormat.CreateUniFillByUniColor(CreateUniColorRGB(0, 0, 0));
+                    oShadowFill = AscFormat.CreateUniFillByUniColor(AscFormat.CreateUniColorRGB(0, 0, 0));
                 }
-                shape.spPr.ln = null;
+
+                if(this.getObjectType() === AscDFH.historyitem_type_Shape
+                && (!this.brush || !this.brush.isVisible()))
+                {
+                    if(this.pen && this.pen.isVisible())
+                    {
+                        shape.spPr.Fill = AscFormat.CreateNoFillUniFill();
+                        shape.spPr.ln = this.pen.createDuplicate();
+                        shape.spPr.ln.Fill = oShadowFill;
+                    }
+                    else
+                    {
+                        shape.spPr.Fill = AscFormat.CreateNoFillUniFill();
+                        shape.spPr.ln = AscFormat.CreateNoFillLine();
+                    }
+                }
+                else
+                {
+                    shape.spPr.Fill = oShadowFill;
+                    shape.spPr.ln = AscFormat.CreateNoFillLine();
+                }
                 var W = this.extX;
                 var H = this.extY;
                 var penW = 0;
@@ -822,8 +1073,34 @@
             }, this, []);
         }
     };
+    CGraphicObjectBase.prototype.check_bounds = function(checker) {
+        checker._s();
+        checker._m(0, 0);
+        checker._l(this.extX, 0);
+        checker._l(this.extX, this.extY);
+        checker._l(0, this.extY);
+        checker._z();
+        checker._e();
+    };
     CGraphicObjectBase.prototype.handleObject = function(fCallback) {
         fCallback(this);
+    };
+
+    CGraphicObjectBase.prototype.isObjectInSmartArt = function () {
+        if(this.group && this.group.isSmartArtObject()) {
+            return true;
+        }
+        return false;
+
+    };
+    CGraphicObjectBase.prototype.isGroupObject = function () {
+        var nType = this.getObjectType();
+        return nType === AscDFH.historyitem_type_GroupShape || nType === AscDFH.historyitem_type_LockedCanvas || this.isSmartArtObject();
+    };
+    CGraphicObjectBase.prototype.isSmartArtObject = function () {
+        var nType = this.getObjectType();
+        return nType === AscDFH.historyitem_type_SmartArt ||
+            nType === AscDFH.historyitem_type_SmartArtDrawing;
     };
 
 
@@ -840,57 +1117,61 @@
 			this.shdwSp.bounds.x = this.bounds.x + this.shdwSp.bounds.l;
 			this.shdwSp.bounds.y = this.bounds.y + this.shdwSp.bounds.t;
             this.shdwSp.transform = oTransform;
-            this.shdwSp.pen = null;
             this.shdwSp.draw(graphics);
         }
     };
-
-
     CGraphicObjectBase.prototype.getAllRasterImages = function(mapUrl){
     };
-
     CGraphicObjectBase.prototype.getAllSlicerViews = function(aSlicerView) {
 
     };
-
     CGraphicObjectBase.prototype.checkCorrect = function(){
         if(this.bDeleted === true){
             return false;
         }
         return this.checkTypeCorrect();
     };
-
-
-
     CGraphicObjectBase.prototype.Clear_ContentChanges = function()
     {
     };
-
     CGraphicObjectBase.prototype.Add_ContentChanges = function(Changes)
     {
     };
-
     CGraphicObjectBase.prototype.Refresh_ContentChanges = function()
     {
     };
-
     CGraphicObjectBase.prototype.getWatermarkProps = function()
     {
         var oProps = new Asc.CAscWatermarkProperties();
         oProps.put_Type(Asc.c_oAscWatermarkType.None);
         return oProps;
     };
-
     CGraphicObjectBase.prototype.CheckCorrect = function(){
         return this.checkCorrect();
     };
-
     CGraphicObjectBase.prototype.checkTypeCorrect = function(){
         return true;
     };
     CGraphicObjectBase.prototype.handleUpdateExtents = function(bExtX){
     };
     CGraphicObjectBase.prototype.handleUpdatePosition = function(){
+    };
+    CGraphicObjectBase.prototype.setDrawingObjects = function(drawingObjects){
+        this.drawingObjects = drawingObjects;
+        if(Array.isArray(this.spTree)) {
+            for(var i = 0; i < this.spTree.length; ++i){
+                this.spTree[i].setDrawingObjects(drawingObjects);
+            }
+        }
+    };
+    CGraphicObjectBase.prototype.setDrawingBase = function(drawingBase){
+        this.drawingBase = drawingBase;
+        //if(Array.isArray(this.spTree)) {
+        //    for(var i = 0; i < this.spTree.length; ++i)
+        //    {
+        //        this.spTree[i].setDrawingBase(drawingBase);
+        //    }
+        //}
     };
     CGraphicObjectBase.prototype.setDrawingBaseType = function(nType){
         if(this.drawingBase){
@@ -942,26 +1223,28 @@
         this.spPr.xfrm.setOffY(y);
         this.spPr.xfrm.setExtX(extX);
         this.spPr.xfrm.setExtY(extY);
+        if(this.isGroupObject()) {
+            this.spPr.xfrm.setChOffX(0);
+            this.spPr.xfrm.setChOffY(0);
+            this.spPr.xfrm.setChExtX(extX);
+            this.spPr.xfrm.setChExtY(extY);
+        }
         this.spPr.xfrm.setRot(rot);
         this.spPr.xfrm.setFlipH(flipH);
         this.spPr.xfrm.setFlipV(flipV);
     };
-
     CGraphicObjectBase.prototype.getPlaceholderType = function()
     {
         return null;
     };
-
     CGraphicObjectBase.prototype.getPlaceholderIndex = function()
     {
         return null;
     };
-
     CGraphicObjectBase.prototype.getPhType = function()
     {
         return null;
     };
-
     CGraphicObjectBase.prototype.getPhIndex = function()
     {
         return null;
@@ -981,6 +1264,22 @@
         }
         return null;
     };
+
+    CGraphicObjectBase.prototype.recalcBrush = function() {};
+    CGraphicObjectBase.prototype.recalcPen = function() {};
+    CGraphicObjectBase.prototype.recalcTransform = function() {};
+    CGraphicObjectBase.prototype.recalcTransformText = function() {};
+    CGraphicObjectBase.prototype.recalcBounds = function() {};
+    CGraphicObjectBase.prototype.recalcGeometry = function() {};
+    CGraphicObjectBase.prototype.recalcStyle = function() {};
+    CGraphicObjectBase.prototype.recalcFill = function() {};
+    CGraphicObjectBase.prototype.recalcLine = function() {};
+    CGraphicObjectBase.prototype.recalcTransparent = function() {};
+    CGraphicObjectBase.prototype.recalcTextStyles = function() {};
+    CGraphicObjectBase.prototype.recalcTxBoxContent = function() {};
+    CGraphicObjectBase.prototype.recalcWrapPolygon = function() {};
+    CGraphicObjectBase.prototype.recalcContent = function() {};
+    CGraphicObjectBase.prototype.recalcContent2 = function() {};
 
     CGraphicObjectBase.prototype.checkDrawingBaseCoords = function()
     {
@@ -1046,7 +1345,6 @@
             this.handleUpdateExtents();
         }
 };
-
     CGraphicObjectBase.prototype.setDrawingBaseCoords = function(fromCol, fromColOff, fromRow, fromRowOff, toCol, toColOff, toRow, toRowOff, posX, posY, extX, extY)
     {
         if(this.drawingBase)
@@ -1099,8 +1397,6 @@
             this.handleUpdateExtents();
         }
     };
-
-
     CGraphicObjectBase.prototype.setWorksheet = function(worksheet)
     {
         AscCommon.History.Add(new AscDFH.CChangesDrawingsString(this, AscDFH.historyitem_AutoShapes_SetWorksheet, this.worksheet ? this.worksheet.getId() : null, worksheet ? worksheet.getId() : null));
@@ -1128,12 +1424,10 @@
             }
         }
     };
-
     CGraphicObjectBase.prototype.getWorksheet = function()
     {
         return this.worksheet;
     };
-
     CGraphicObjectBase.prototype.getWorkbook = function()
     {
         var oWorksheet = this.getWorksheet();
@@ -1147,11 +1441,9 @@
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.getUniNvProps = function(){
         return this.nvSpPr || this.nvPicPr || this.nvGrpSpPr || this.nvGraphicFramePr || null;
     };
-
     CGraphicObjectBase.prototype.getCNvProps = function(){
         var oUniNvPr = this.getUniNvProps();
         if(oUniNvPr){
@@ -1166,7 +1458,6 @@
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.getNvProps = function(){
         var oUniNvPr = this.getUniNvProps();
         if(oUniNvPr){
@@ -1174,8 +1465,6 @@
         }
         return null;
     };
-
-
     CGraphicObjectBase.prototype.setTitle = function(sTitle){
         if(undefined === sTitle || null === sTitle){
             return;
@@ -1185,7 +1474,6 @@
             oNvPr.setTitle(sTitle ? sTitle : null);
         }
     };
-
     CGraphicObjectBase.prototype.setDescription = function(sDescription){
         if(undefined === sDescription || null === sDescription){
             return;
@@ -1195,7 +1483,6 @@
             oNvPr.setDescr(sDescription ? sDescription : null);
         }
     };
-
     CGraphicObjectBase.prototype.getTitle = function(){
         var oNvPr = this.getCNvProps();
         if(oNvPr){
@@ -1203,7 +1490,6 @@
         }
         return undefined;
     };
-
     CGraphicObjectBase.prototype.getDescription = function(){
         var oNvPr = this.getCNvProps();
         if(oNvPr){
@@ -1211,14 +1497,11 @@
         }
         return undefined;
     };
-
     CGraphicObjectBase.prototype.setBDeleted = function(pr)
     {
         History.Add(new AscDFH.CChangesDrawingsBool(this, AscDFH.historyitem_ShapeSetBDeleted, this.bDeleted, pr));
         this.bDeleted = pr;
     };
-
-
     CGraphicObjectBase.prototype.getEditorType = function()
     {
         return 1;
@@ -1227,20 +1510,16 @@
     {
         return false;
     };
-
-    CGraphicObjectBase.prototype.Restart_CheckSpelling = function()
+    CGraphicObjectBase.prototype.RestartSpellCheck = function()
     {
     };
-
     CGraphicObjectBase.prototype.GetAllFields = function(isUseSelection, arrFields)
     {
         return arrFields ? arrFields : [];
     };
-
     CGraphicObjectBase.prototype.GetAllSeqFieldsByType = function(sType, aFields)
     {
     };
-
     CGraphicObjectBase.prototype.convertToConnectionParams = function(rot, flipH, flipV, oTransform, oBounds, oConnectorInfo){
         var _ret =  new AscFormat.ConnectionParams();
         var _rot = oConnectorInfo.ang*AscFormat.cToRad + rot;
@@ -1276,9 +1555,6 @@
         _ret.idx = oConnectorInfo.idx;
         return _ret;
     };
-
-
-
     CGraphicObjectBase.prototype.getGeom = function () {
 
         var _geom;
@@ -1302,7 +1578,6 @@
         }
         return _geom;
     };
-
     CGraphicObjectBase.prototype.findGeomConnector = function(x, y){
         var _geom = this.getGeom();
         var oInvertTransform = this.invertTransform;
@@ -1311,7 +1586,6 @@
         return _geom.findConnector(_x, _y, this.convertPixToMM(AscCommon.global_mouseEvent.KoefPixToMM * AscCommon.TRACK_CIRCLE_RADIUS));
 
     };
-
     CGraphicObjectBase.prototype.findConnector = function(x, y){
         var oConnGeom = this.findGeomConnector(x, y);
         if(oConnGeom){
@@ -1331,7 +1605,6 @@
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.findConnectionShape = function(x, y){
         if(this.hit(x, y)){
             return this;
@@ -1341,41 +1614,33 @@
     CGraphicObjectBase.prototype.getAllDocContents = function(aDrawings){
 
     };
-
-
     CGraphicObjectBase.prototype.getFullRotate = function () {
         return !AscCommon.isRealObject(this.group) ? this.rot : this.rot + this.group.getFullRotate();
     };
-
     CGraphicObjectBase.prototype.getAspect = function (num) {
         var _tmp_x = this.extX !== 0 ? this.extX : 0.1;
         var _tmp_y = this.extY !== 0 ? this.extY : 0.1;
         return num === 0 || num === 4 ? _tmp_x / _tmp_y : _tmp_y / _tmp_x;
     };
-
     CGraphicObjectBase.prototype.getFullFlipH = function () {
         if (!AscCommon.isRealObject(this.group))
             return this.flipH;
         return this.group.getFullFlipH() ? !this.flipH : this.flipH;
     };
-
     CGraphicObjectBase.prototype.getFullFlipV = function () {
         if (!AscCommon.isRealObject(this.group))
             return this.flipV;
         return this.group.getFullFlipV() ? !this.flipV : this.flipV;
     };
-
     CGraphicObjectBase.prototype.getMainGroup = function () {
         if(!AscCommon.isRealObject(this.group)){
-            if(this.getObjectType() === AscDFH.historyitem_type_GroupShape || this.getObjectType() === AscDFH.historyitem_type_LockedCanvas){
+            if(this.isGroupObject()){
                 return this;
             }
             return null;
         }
         return this.group.getMainGroup();
     };
-
-
     CGraphicObjectBase.prototype.drawConnectors = function(overlay)
     {
         var _geom = this.getGeom();
@@ -1421,7 +1686,6 @@
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.getCardDirectionByNum = function (num) {
         var num_north = this.getNumByCardDirection(AscFormat.CARD_DIRECTION_N);
         var full_flip_h = this.getFullFlipH();
@@ -1432,11 +1696,9 @@
 
         return (AscFormat.CARD_DIRECTION_N - (num - num_north) + 8) % 8;
     };
-
     CGraphicObjectBase.prototype.getTransformMatrix = function(){
         return this.transform;
     };
-
     CGraphicObjectBase.prototype.getNumByCardDirection = function (cardDirection) {
         var hc = this.extX * 0.5;
         var vc = this.extY * 0.5;
@@ -1478,49 +1740,132 @@
             return (north_number + cardDirection) % 8;
         return (north_number - cardDirection + 8) % 8;
     };
-
     CGraphicObjectBase.prototype.getInvertTransform = function(){
         return this.invertTransform;
     };
-
-    CGraphicObjectBase.prototype.getResizeCoefficients = function (numHandle, x, y) {
+    CGraphicObjectBase.prototype.getResizeCoefficients = function (numHandle, x, y, aDrawings) {
         var cx, cy;
         cx = this.extX > 0 ? this.extX : 0.01;
         cy = this.extY > 0 ? this.extY : 0.01;
 
         var invert_transform = this.getInvertTransform();
-        if(!invert_transform){
+        if(!invert_transform) {
             return { kd1: 1, kd2: 1 };
         }
         var t_x = invert_transform.TransformPointX(x, y);
         var t_y = invert_transform.TransformPointY(x, y);
 
+        var bSnapH = false;
+        var bSnapV = false;
+
+        var oSnapHorObject, oSnapVertObject;
+        var dSnapX = null;
+        var dSnapY = null;
+        var bOwnH = false;
+        var bOwnV = false;
+        if(numHandle === 0 || numHandle === 6 || numHandle === 7) {
+            if(Math.abs(t_x) < AscFormat.SNAP_DISTANCE) {
+                t_x = 0;
+                bSnapH = true;
+                bOwnH = true;
+            }
+        }
+        if(numHandle === 2 || numHandle === 3 || numHandle === 4) {
+            if(Math.abs(t_x - this.extX) < AscFormat.SNAP_DISTANCE) {
+                t_x = this.extX;
+                bSnapH = true;
+                bOwnH = true;
+            }
+        }
+
+        if(numHandle === 0 || numHandle === 1 || numHandle === 2) {
+            if(Math.abs(t_y) < AscFormat.SNAP_DISTANCE) {
+                t_y = 0;
+                bSnapV = true;
+                bOwnV = true;
+            }
+        }
+
+        if(numHandle === 4 || numHandle === 5 || numHandle === 6) {
+            if(Math.abs(t_y - this.extY) < AscFormat.SNAP_DISTANCE) {
+                t_y = this.extY;
+                bSnapV = true;
+                bOwnV = true;
+            }
+        }
+
+
+        if(!bSnapH) {
+            if(Array.isArray(aDrawings)) {
+                oSnapHorObject = AscFormat.GetMinSnapDistanceXObject(x, aDrawings, this);
+                if(oSnapHorObject) {
+                    if(Math.abs(oSnapHorObject.dist) < AscFormat.SNAP_DISTANCE) {
+                        bSnapH = true;
+                    }
+                    else {
+                        oSnapHorObject = null;
+                    }
+                }
+            }
+        }
+        if(!bSnapV) {
+            if(Array.isArray(aDrawings)) {
+                oSnapVertObject = AscFormat.GetMinSnapDistanceYObject(y, aDrawings, this);
+                if(oSnapVertObject && Math.abs(oSnapVertObject.dist) < AscFormat.SNAP_DISTANCE) {
+                    bSnapV = true;
+                }
+                else {
+                    oSnapVertObject = null;
+                }
+            }
+        }
+        if(oSnapHorObject || oSnapVertObject) {
+            var newX = oSnapHorObject ? x + oSnapHorObject.dist : x;
+            var newY = oSnapVertObject ? y + oSnapVertObject.dist : y;
+            if(oSnapHorObject || !bSnapH) {
+                t_x = invert_transform.TransformPointX(newX, newY);
+            }
+            if(oSnapVertObject || !bSnapV) {
+                t_y = invert_transform.TransformPointY(newX, newY);
+            }
+        }
+        if(bSnapH && !bOwnH) {
+            if(numHandle !== 1 && numHandle !== 5 &&
+                !((numHandle === 7 || numHandle === 3) && !this.transform.IsIdentity2())) {
+                dSnapX = this.transform.TransformPointX(t_x, t_y);
+            }
+        }
+        if(bSnapV && !bOwnV) {
+            if(numHandle !== 7 && numHandle !== 3 &&
+                !((numHandle === 1 || numHandle === 5) && !this.transform.IsIdentity2())) {
+                dSnapY = this.transform.TransformPointY(t_x, t_y);
+            }
+        }
+
         switch (numHandle) {
             case 0:
-                return { kd1: (cx - t_x) / cx, kd2: (cy - t_y) / cy };
+                return { kd1: (cx - t_x) / cx, kd2: (cy - t_y) / cy, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY};
             case 1:
-                return { kd1: (cy - t_y) / cy, kd2: 0 };
+                return { kd1: (cy - t_y) / cy, kd2: 0, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
             case 2:
-                return { kd1: (cy - t_y) / cy, kd2: t_x / cx };
+                return { kd1: (cy - t_y) / cy, kd2: t_x / cx, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
             case 3:
-                return { kd1: t_x / cx, kd2: 0 };
+                return { kd1: t_x / cx, kd2: 0, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
             case 4:
-                return { kd1: t_x / cx, kd2: t_y / cy };
+                return { kd1: t_x / cx, kd2: t_y / cy, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
             case 5:
-                return { kd1: t_y / cy, kd2: 0 };
+                return { kd1: t_y / cy, kd2: 0, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
             case 6:
-                return { kd1: t_y / cy, kd2: (cx - t_x) / cx };
+                return { kd1: t_y / cy, kd2: (cx - t_x) / cx, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
             case 7:
-                return { kd1: (cx - t_x) / cx, kd2: 0 };
+                return { kd1: (cx - t_x) / cx, kd2: 0, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
         }
-        return { kd1: 1, kd2: 1 };
+        return { kd1: 1, kd2: 1, snapH: bSnapH, snapV: bSnapV, snapX: dSnapX, snapY: dSnapY };
     };
-
-
-    CGraphicObjectBase.prototype.GetAllContentControls = function(arrContentControls)
-    {
+    CGraphicObjectBase.prototype.GetAllContentControls = function(arrContentControls) {};
+	CGraphicObjectBase.prototype.GetAllDrawingObjects = function(arrDrawingObjects) {};
+	CGraphicObjectBase.prototype.GetAllOleObjects = function(sPluginId, arrObjects) {
     };
-
     CGraphicObjectBase.prototype.CheckContentControlEditingLock = function () {
         if(this.group){
             this.group.CheckContentControlEditingLock();
@@ -1541,12 +1886,18 @@
         if(this.parent && this.parent.kind === AscFormat.TYPE_KIND.NOTES){
             return -1;
         }
+        if(this.isProtected && this.isProtected()) {
+            return -1;
+        }
         return AscFormat.hitToHandles(x, y, this);
     };
     CGraphicObjectBase.prototype.onMouseMove = function (e, x, y) {
         return this.hit(x, y);
     };
     CGraphicObjectBase.prototype.drawLocks = function(transform, graphics){
+        if(AscCommon.IsShapeToImageConverter) {
+            return;
+        }
         var bNotes = !!(this.parent && this.parent.kind === AscFormat.TYPE_KIND.NOTES);
         if(!this.group && !bNotes)
         {
@@ -1602,17 +1953,43 @@
         }
         return this.macro;
     };
-
     CGraphicObjectBase.prototype.getCopyWithSourceFormatting = function(oIdMap){
         return this.copy(oIdMap);
     };
-
     CGraphicObjectBase.prototype.checkNeedRecalculate = function(){
         return false;
     };
     CGraphicObjectBase.prototype.handleAllContents = function(fCallback){
     };
-
+    CGraphicObjectBase.prototype.canFill = function() {
+        return false;
+    };
+    CGraphicObjectBase.prototype.getPaddings = function() {
+        return null;
+    };
+    CGraphicObjectBase.prototype.getBodyPr = function() {
+        var oThis = this;
+        return AscFormat.ExecuteNoHistory(function(){
+            var ret = new AscFormat.CBodyPr();
+            ret.setDefault();
+            return ret;
+        }, oThis, []);
+    };
+    CGraphicObjectBase.prototype.getTextArtProperties = function() {
+        return null;
+    };
+    CGraphicObjectBase.prototype.getColumnNumber = function() {
+        return null;
+    };
+    CGraphicObjectBase.prototype.getColumnSpace = function() {
+        return null;
+    };
+    CGraphicObjectBase.prototype.getTextFitType = function() {
+        return null;
+    };
+    CGraphicObjectBase.prototype.getVertOverflowType = function() {
+        return null;
+    };
     CGraphicObjectBase.prototype.canChangeArrows = function () {
         if (!this.spPr || this.spPr.geometry == null) {
             return false;
@@ -1634,24 +2011,15 @@
         }
         return false;
     };
-
     CGraphicObjectBase.prototype.getStroke = function () {
         if(this.pen && this.pen.Fill)
         {
-            if(this.getObjectType() === AscDFH.historyitem_type_ImageShape && AscFormat.isRealNumber(this.pen.w))
-            {
-                var _ret = this.pen.createDuplicate();
-                _ret.w/=2.0;
-                return _ret;
-            }
             return this.pen;
         }
         var ret = AscFormat.CreateNoFillLine();
         ret.w = 0;
         return ret;
     };
-
-
     CGraphicObjectBase.prototype.getPresetGeom = function () {
         if (this.spPr && this.spPr.geometry) {
             return this.spPr.geometry.preset;
@@ -1664,8 +2032,6 @@
             return null;
         }
     };
-
-
     CGraphicObjectBase.prototype.getFill = function () {
         if(this.brush && this.brush.fill)
         {
@@ -1673,14 +2039,12 @@
         }
         return AscFormat.CreateNoFillUniFill();
     };
-
     CGraphicObjectBase.prototype.getClipRect = function(){
         if(this.parent && this.parent.GetClipRect){
             return this.parent.GetClipRect();
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.getBlipFill = function(){
         if(this.getObjectType() === AscDFH.historyitem_type_ImageShape || this.getObjectType() === AscDFH.historyitem_type_Shape){
             if(this.blipFill){
@@ -1692,7 +2056,6 @@
         }
         return null;
     };
-
     CGraphicObjectBase.prototype.checkSrcRect = function(){
 
         if(this.getObjectType() === AscDFH.historyitem_type_ImageShape){
@@ -1815,15 +2178,12 @@
             return false;
         }, this, []);
     };
-
     CGraphicObjectBase.prototype.clearCropObject = function(){
         this.cropObject = null;
     };
-
     CGraphicObjectBase.prototype.drawCropTrack = function(graphics, srcRect, transform, cropObjectTransform){
 
     };
-
     CGraphicObjectBase.prototype.calculateSrcRect = function(){
 
         var oldTransform = this.transform.CreateDublicate();
@@ -1843,8 +2203,6 @@
         this.setSrcRect(this.calculateSrcRect2());
         this.clearCropObject();
     };
-
-
     CGraphicObjectBase.prototype.setSrcRect = function(srcRect){
 
         if(this.getObjectType() === AscDFH.historyitem_type_ImageShape)
@@ -1860,7 +2218,6 @@
             this.spPr.setFill(brush);
         }
     };
-
     CGraphicObjectBase.prototype.calculateSrcRect2 = function(){
 
         var oShapeDrawer = new AscCommon.CShapeDrawer();
@@ -1881,8 +2238,6 @@
         }
         return null;
     };
-
-
     CGraphicObjectBase.prototype.updatePosition = function(x, y) {
         this.posX = x;
         this.posY = y;
@@ -1898,7 +2253,6 @@
             this.updateTransformMatrix();
         }
     };
-
     CGraphicObjectBase.prototype.copyComments = function(oLogicDocument)
     {
         if(!oLogicDocument)
@@ -1914,8 +2268,85 @@
         }
     };
 
-    CGraphicObjectBase.prototype.createPlaceholderControl = function()
+    CGraphicObjectBase.prototype.writeRecord1 = function(pWriter, nType, oChild) {
+        if(AscCommon.isRealObject(oChild)) {
+            pWriter.WriteRecord1(nType, oChild, function(oChild) {
+                oChild.toPPTY(pWriter);
+            });
+        }
+        else {
+            //TODO: throw an error
+        }
+    };
+    CGraphicObjectBase.prototype.writeRecord2 = function(pWriter, nType, oChild) {
+        if(AscCommon.isRealObject(oChild)) {
+            this.writeRecord1(pWriter, nType, oChild);
+        }
+    };
+
+    CGraphicObjectBase.prototype.ResetParametersWithResize = function(bNoResetRelSize)
     {
+        var oParaDrawing = AscFormat.getParaDrawing(this);
+        if(oParaDrawing && !(bNoResetRelSize === true))
+        {
+            if(oParaDrawing.SizeRelH)
+            {
+                oParaDrawing.SetSizeRelH(undefined);
+            }
+            if(oParaDrawing.SizeRelV)
+            {
+                oParaDrawing.SetSizeRelV(undefined);
+            }
+        }
+        if(this instanceof AscFormat.CShape) {
+            var oPropsToSet = null;
+            if (this.bWordShape) {
+                if (!this.textBoxContent)
+                    return;
+                if (this.bodyPr) {
+                    oPropsToSet = this.bodyPr.createDuplicate();
+                } else {
+                    oPropsToSet = new AscFormat.CBodyPr();
+                }
+            } else {
+                if (!this.txBody)
+                    return;
+                if (this.txBody.bodyPr) {
+                    oPropsToSet = this.txBody.bodyPr.createDuplicate();
+                } else {
+                    oPropsToSet = new AscFormat.CBodyPr();
+                }
+            }
+            var oBodyPr = this.getBodyPr();
+            if (this.bWordShape) {
+                if(oBodyPr.textFit && oBodyPr.textFit.type === AscFormat.text_fit_Auto)
+                {
+                    if(!oPropsToSet.textFit)
+                    {
+                        oPropsToSet.textFit = new AscFormat.CTextFit();
+                    }
+                    oPropsToSet.textFit.type = AscFormat.text_fit_No;
+                }
+            }
+            if (oBodyPr.wrap === AscFormat.nTWTNone) {
+                oPropsToSet.wrap = AscFormat.nTWTSquare;
+            }
+            if (this.bWordShape) {
+                this.setBodyPr(oPropsToSet);
+            } else {
+                this.txBody.setBodyPr(oPropsToSet);
+                if (this.checkExtentsByDocContent) {
+                    this.checkExtentsByDocContent(true, true);
+                }
+            }
+        }
+    };
+    CGraphicObjectBase.prototype.createPlaceholderControl = function(aControls)
+    {
+        if(!this.isEmptyPlaceholder())
+        {
+            return;
+        }
         var phType = this.getPhType();
         var aButtons = [];
         var isLocalDesktop = window["AscDesktopEditor"] && window["AscDesktopEditor"]["IsSupportMedia"] && window["AscDesktopEditor"]["IsSupportMedia"]();
@@ -2027,23 +2458,23 @@
         {
             nSlideNum = this.parent.num;
         }
-        return  AscCommon.CreateDrawingPlaceholder(this.Id, aButtons, nSlideNum, { x : 0, y : 0, w : this.extX, h : this.extY }, this.transform);
+        if(aButtons.length > 0)
+        {
+            aControls.push(AscCommon.CreateDrawingPlaceholder(this.Id, aButtons, nSlideNum, { x : 0, y : 0, w : this.extX, h : this.extY }, this.transform));
+        }
     };
-
     CGraphicObjectBase.prototype.onSlicerUpdate = function(sName){
         return false;
     };
 
     CGraphicObjectBase.prototype.onSlicerLock = function(sName, bLock){
     };
-
     CGraphicObjectBase.prototype.onSlicerDelete = function(sName){
         return false;
     };
     CGraphicObjectBase.prototype.onSlicerChangeName = function(sName, sNewName){
         return false;
     };
-
     CGraphicObjectBase.prototype.onUpdate = function (oRect) {
         if(this.drawingBase) {
             this.drawingBase.onUpdate(oRect);
@@ -2090,7 +2521,7 @@
             content.Set_StartPage(pageIndex);
         var selected_objects;
         if (!AscCommon.isRealObject(this.group))
-            selected_objects = drawingObjectsController.selectedObjects;
+            selected_objects = drawingObjectsController ? drawingObjectsController.selectedObjects : [];
         else
             selected_objects = this.group.getMainGroup().selectedObjects;
         for (var i = 0; i < selected_objects.length; ++i) {
@@ -2099,12 +2530,17 @@
         }
         if (i === selected_objects.length)
             selected_objects.push(this);
+
+    
+        if(drawingObjectsController) {
+            drawingObjectsController.onChangeDrawingsSelection();
+        }
     };
     CGraphicObjectBase.prototype.deselect = function (drawingObjectsController) {
         this.selected = false;
         var selected_objects;
         if (!AscCommon.isRealObject(this.group))
-            selected_objects = drawingObjectsController.selectedObjects;
+            selected_objects = drawingObjectsController ? drawingObjectsController.selectedObjects : [];
         else
             selected_objects = this.group.getMainGroup().selectedObjects;
         for (var i = 0; i < selected_objects.length; ++i) {
@@ -2117,7 +2553,40 @@
         {
             this.graphicObject.RemoveSelection();
         }
+        
+        if(drawingObjectsController) {
+            drawingObjectsController.onChangeDrawingsSelection();
+        }
         return this;
+    };
+    CGraphicObjectBase.prototype.Set_CurrentElement = function(bUpdate, pageIndex) {
+        //TODO: refactor this
+        if(AscFormat.CShape.prototype.Set_CurrentElement) {
+            AscFormat.CShape.prototype.Set_CurrentElement.call(this, bUpdate, pageIndex);
+        }
+    };
+
+
+    CGraphicObjectBase.prototype.SetControllerTextSelection = function(drawing_objects, nPageIndex) {
+        if(drawing_objects) {
+            var oContent = this.getDocContent && this.getDocContent();
+            drawing_objects.resetSelection(true);
+            if(this.group) {
+                var main_group = this.group.getMainGroup();
+                drawing_objects.selectObject(main_group, nPageIndex);
+                main_group.selectObject(this, nPageIndex);
+                if(oContent) {
+                    main_group.selection.textSelection = this;
+                }
+                drawing_objects.selection.groupSelection = main_group;
+            }
+            else {
+                drawing_objects.selectObject(this, nPageIndex);
+                if(oContent) {
+                    drawing_objects.selection.textSelection = this;
+                }
+            }
+        }
     };
 
     CGraphicObjectBase.prototype.hitInBoundingRect = function (x, y) {
@@ -2145,10 +2614,323 @@
     };
 	CGraphicObjectBase.prototype.isForm = function() {
 		return (this.parent && this.parent.IsForm && this.parent.IsForm());
-	}
+	};
+	CGraphicObjectBase.prototype.getFormHorPadding = function() {
+		return 0;
+	};
 	CGraphicObjectBase.prototype.getInnerForm = function() {
 		return null;
-	}
+	};
+	CGraphicObjectBase.prototype.isContainedInTopDocument = function() {
+		var oParentContent = this.parent && this.parent.DocumentContent;
+        if(!oParentContent) {
+            return true;
+        }
+        return (oParentContent === oParentContent.GetLogicDocument());
+	};
+	CGraphicObjectBase.prototype.isContainedInMainDoc = function() {
+		var oParentContent = this.parent && this.parent.DocumentContent;
+        if(!oParentContent) {
+            return true;
+        }
+        return (oParentContent.GetTopDocumentContent() === oParentContent.GetLogicDocument());
+	};
+    CGraphicObjectBase.prototype.getBoundsByDrawing = function() {
+        var oCopy = this.bounds.copy();
+        oCopy.l -= 3;
+        oCopy.r += 3;
+        oCopy.t -= 3;
+        oCopy.b += 3;
+        oCopy.checkWH();
+        return oCopy;//TODO: do not count shape rect
+    };
+    CGraphicObjectBase.prototype.getPresentationSize = function() {
+        var oPresentation = editor.WordControl.m_oLogicDocument;
+        return {
+            w: oPresentation.GetWidthMM(),
+            h: oPresentation.GetHeightMM()
+        }
+    };
+    CGraphicObjectBase.prototype.getAnimTexture = function(scale) {
+        var oBounds = this.getBoundsByDrawing();
+        var nWidth = oBounds.w * scale + 0.5 >> 0;
+        var nHeight = oBounds.h * scale + 0.5 >> 0;
+        if(nWidth === 0 || nHeight === 0) {
+            return null;
+        }
+        var oCanvas = document.createElement('canvas');
+        oCanvas.width = nWidth;
+        oCanvas.height = nHeight;
+        var oCtx = oCanvas.getContext('2d');
+        var oGraphics = new AscCommon.CGraphics();
+        oGraphics.init(oCtx, nWidth, nHeight, nWidth / scale, nHeight / scale);
+        oGraphics.m_oFontManager = AscCommon.g_fontManager;
+        var nX = oBounds.x * oGraphics.m_oCoordTransform.sx;
+        var nY = oBounds.y * oGraphics.m_oCoordTransform.sy;
+        oGraphics.m_oCoordTransform.tx = -nX;
+        oGraphics.m_oCoordTransform.ty = -nY;
+        AscCommon.IsShapeToImageConverter = true;
+        this.draw(oGraphics);
+        AscCommon.IsShapeToImageConverter = false;
+        return new AscFormat.CBaseAnimTexture(oCanvas, scale, nX, nY)
+    };
+
+    CGraphicObjectBase.prototype.isOnProtectedSheet = function() {
+        if(this.worksheet) {
+            if(this.worksheet.getSheetProtection(Asc.c_oAscSheetProtectType.objects)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    CGraphicObjectBase.prototype.isProtectedText = function() {
+        if(this.getProtectionLockText()) {
+            if(this.isOnProtectedSheet()) {
+                return true;
+            }
+        }
+        return false;
+    };
+    CGraphicObjectBase.prototype.isProtected = function() {
+        if(this.getProtectionLocked()) {
+            if(this.isOnProtectedSheet()) {
+                return true;
+            }
+        }
+        return false;
+    };
+	CGraphicObjectBase.prototype.canEditText = function() {
+        if(this.getObjectType() === AscDFH.historyitem_type_Shape) {
+            if(!AscFormat.CheckLinePresetForParagraphAdd(this.getPresetGeom()) && !this.signatureLine) {
+                if(this.isProtectedText()) {
+                    return false;
+                }
+                if (this.isObjectInSmartArt()) {
+                    return this.canEditTextInSmartArt();
+                }
+                return true;
+            }
+        }
+        return false;
+	};
+    CGraphicObjectBase.prototype.canEdit = function() {
+        if(this.isProtected()) {
+            return false;
+        }
+        return true;
+    };
+    //for bug 52775. remove in the next version
+    CGraphicObjectBase.prototype.applySmartArtTextStyle = function() {
+
+    };
+    CGraphicObjectBase.prototype.convertFromSmartArt = function() {
+        return this;
+    };
+
+    CGraphicObjectBase.prototype.getDefaultRotSA = function () {
+        if (this.isObjectInSmartArt()) {
+            var point = this.getSmartArtShapePoint();
+            if (point) {
+                var custAng = point.getCustAng();
+                if (custAng) {
+                    var defaultRot = this.spPr && this.spPr.xfrm && this.spPr.xfrm.rot || 0;
+                    if (custAng) {
+                        if (custAng > defaultRot) {
+                            defaultRot += Math.PI * 2 * Math.ceil(custAng / (Math.PI * 2));
+                        }
+                        defaultRot -= custAng;
+                        return AscFormat.normalizeRotate(defaultRot);
+                    }
+                }
+            }
+            return AscFormat.normalizeRotate(this.rot);
+        }
+    };
+
+    CGraphicObjectBase.prototype.changePositionInSmartArt = function (newX, newY) {}
+
+    CGraphicObjectBase.prototype.changeRot = function(dAngle, bWord) {
+        var oSmartArt;
+        if (this.isObjectInSmartArt()) {
+            oSmartArt = this.group.group;
+            if (this.extX > oSmartArt.extX || this.extY > oSmartArt.extY || this.extX > oSmartArt.extY || this.extY > oSmartArt.extX) {
+                return;
+            }
+        }
+
+        if(this.spPr && this.spPr.xfrm) {
+            var oXfrm = this.spPr.xfrm;
+            var originalRot = oXfrm.rot || 0;
+            var dRot = AscFormat.normalizeRotate(dAngle);
+            oXfrm.setRot(dRot);
+            if(this.isObjectInSmartArt()) {
+                oSmartArt = this.group.group;
+                var point = this.getSmartArtShapePoint();
+                if (point) {
+                    var prSet = point.getPrSet();
+                    if (prSet) {
+                        var defaultRot = originalRot;
+                        if (prSet.custAng) {
+                            var oldCustAng = prSet.custAng;
+                            if (oldCustAng > defaultRot) {
+                                defaultRot += Math.PI * 2 * Math.ceil(oldCustAng / (Math.PI * 2));
+                            }
+                            defaultRot -= oldCustAng;
+                        }
+                        if (originalRot !== dRot) {
+                            var currentAngle = dRot;
+                            if (defaultRot > currentAngle) {
+                                currentAngle += Math.PI * 2 * Math.ceil(defaultRot / (Math.PI * 2));
+                            }
+                            var newCustAng = (currentAngle - defaultRot);
+                            prSet.setCustAng(newCustAng);
+                        }
+                    }
+                }
+                this.recalculate();
+                var oBounds = this.bounds;
+                var diffX = null, diffY = null;
+                var leftEdgeOfSmartArt = oSmartArt.x;
+                var topEdgeOfSmartArt = oSmartArt.y;
+                var rightEdgeOfSmartArt = oSmartArt.x + oSmartArt.extX;
+                var bottomEdgeOfSmartArt = oSmartArt.y + oSmartArt.extY;
+                if (bWord) {
+                    oBounds = {
+                        l: oBounds.l + leftEdgeOfSmartArt,
+                        r: oBounds.r + leftEdgeOfSmartArt,
+                        t: oBounds.t + topEdgeOfSmartArt,
+                        b: oBounds.b + topEdgeOfSmartArt
+                    };
+                }
+                if(oBounds.r > rightEdgeOfSmartArt) {
+                    diffX = rightEdgeOfSmartArt - oBounds.r;
+                }
+                if(oBounds.l < leftEdgeOfSmartArt) {
+                    diffX = leftEdgeOfSmartArt - oBounds.l;
+                }
+                if(oBounds.b > bottomEdgeOfSmartArt) {
+                    diffY = bottomEdgeOfSmartArt - oBounds.b;
+                }
+                if(oBounds.t < topEdgeOfSmartArt) {
+                    diffY = topEdgeOfSmartArt - oBounds.t;
+                }
+
+                if(diffX !== null) {
+                    var newOffX = this.spPr.xfrm.offX + diffX;
+                    this.spPr.xfrm.setOffX(newOffX);
+                    this.txXfrm && this.txXfrm.setOffX(this.txXfrm.offX + diffX);
+                }
+                if(diffY !== null) {
+                    var newOffY = this.spPr.xfrm.offY + diffY;
+                    this.spPr.xfrm.setOffY(newOffY);
+                    this.txXfrm && this.txXfrm.setOffY(this.txXfrm.offY + diffY);
+                }
+
+                var posX = this.spPr.xfrm.offX;
+                var posY = this.spPr.xfrm.offY;
+                this.changePositionInSmartArt(posX, posY);
+            }
+        }
+    };
+    CGraphicObjectBase.prototype.changeFlipH = function(bFlipH) {
+        if(this.spPr && this.spPr.xfrm) {
+            var oXfrm = this.spPr.xfrm;
+            oXfrm.setFlipH(bFlipH);
+            if(this.isObjectInSmartArt()) {
+                var point = this.getSmartArtShapePoint();
+                point && point.changeFlipH(bFlipH);
+            }
+        }
+    };
+    CGraphicObjectBase.prototype.changeFlipV = function(bFlipV) {
+        if(this.spPr && this.spPr.xfrm) {
+            var oXfrm = this.spPr.xfrm;
+            oXfrm.setFlipV(bFlipV);
+            if(this.isObjectInSmartArt()) {
+                var point = this.getSmartArtShapePoint();
+                point && point.changeFlipV(bFlipV);
+            }
+        }
+    };
+    CGraphicObjectBase.prototype.getTypeName = function() {
+        return AscCommon.translateManager.getValue("Graphic Object");
+    };
+    CGraphicObjectBase.prototype.getObjectName = function() {
+		var oCNvPr = this.getCNvProps();
+		if(oCNvPr && typeof oCNvPr.name === "string" && oCNvPr.name.length > 0) {
+			return oCNvPr.name;
+		}
+        return this.getTypeName() + " " + this.getFormatId();
+    };
+    
+    CGraphicObjectBase.prototype.isPlaceholder = function() {
+        return false;
+    };
+    CGraphicObjectBase.prototype.getPlaceholderName = function() {
+        if(!this.isPlaceholder()) {
+            return "";
+        }
+        var nPhType = this.getPlaceholderType();
+        var sText = AscFormat.pHText[nPhType];
+        if(!sText) {
+            sText = AscFormat.pHText[AscFormat.phType_body];
+        }
+        var sTrText = AscCommon.translateManager.getValue(sText);
+        return sTrText;
+    };
+    CGraphicObjectBase.prototype.getTimimng = function() {
+        if(this.group) {
+            return this.group.getTimimng();
+        }
+        return (this.parent && this.parent.timing) || null;
+    };
+    CGraphicObjectBase.prototype.drawAnimLabels = function(oGraphics) {
+        if(oGraphics.IsThumbnail === true || oGraphics.IsDemonstrationMode === true 
+            || AscCommon.IsShapeToImageConverter || oGraphics.DO_NOT_DRAW_ANIM_LABEL) {
+            return;
+        }
+        if(this.group) {
+            return;
+        }
+        var oApi = Asc.editor || editor;
+        if(!oApi.isDrawAnimLabels || !oApi.isDrawAnimLabels()) {
+            return;
+        }
+        var oTiming = this.getTimimng();
+        if(!oTiming) {
+            return;
+        }
+        var aEffects = oTiming.getObjectEffects(this.Get_Id());
+        if(aEffects.length === 0) {
+            return;
+        }
+        var oBounds = this.bounds;
+        var dX = oBounds.x - this.convertPixToMM(9) - this.convertPixToMM(ANIM_LABEL_WIDTH_PIX);
+        var dY = oBounds.y;
+        var dW = this.convertPixToMM(ANIM_LABEL_WIDTH_PIX);
+        var dH = this.convertPixToMM(ANIM_LABEL_HEIGHT_PIX);
+        for(var nEffect = 0; nEffect < aEffects.length; ++nEffect) {
+            aEffects[nEffect].drawEffectLabel(oGraphics, dX, dY, dW, dH);
+            dY += (this.convertPixToMM(4) + dH);
+        }
+    };
+    
+    CGraphicObjectBase.prototype.isImage = function() {
+        return this.getObjectType() === AscDFH.historyitem_type_ImageShape;
+    };
+
+    CGraphicObjectBase.prototype.Is_UseInDocument = function() {
+        if(CShape.prototype.Is_UseInDocument) {
+            return CShape.prototype.Is_UseInDocument.call(this);
+        }
+        return true;
+    };
+
+    
+
+    var ANIM_LABEL_WIDTH_PIX = 22;
+    var ANIM_LABEL_HEIGHT_PIX = 17;
+
 
     function CRelSizeAnchor() {
         CBaseObject.call(this);
@@ -2163,17 +2945,14 @@
         this.parent = null;
         this.drawingBase = null;
     }
-
     CRelSizeAnchor.prototype = Object.create(CBaseObject.prototype);
     CRelSizeAnchor.prototype.constructor = CRelSizeAnchor;
-
     CRelSizeAnchor.prototype.setDrawingBase = function(drawingBase){
         this.drawingBase = drawingBase;
     };
     CRelSizeAnchor.prototype.getObjectType = function () {
         return AscDFH.historyitem_type_RelSizeAnchor;
     };
-
     CRelSizeAnchor.prototype.setFromTo = function (fromX, fromY, toX, toY) {
         History.Add(new AscDFH.CChangesDrawingsDouble(this, AscDFH.historyitem_RelSizeAnchorFromX, this.fromX, fromX));
         History.Add(new AscDFH.CChangesDrawingsDouble(this, AscDFH.historyitem_RelSizeAnchorFromY, this.fromY, fromY));
@@ -2191,12 +2970,10 @@
             object.setParent(this);
         }
     };
-
     CRelSizeAnchor.prototype.setParent = function (object) {
         History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_RelSizeAnchorParent, this.parent, object));
         this.parent = object;
     };
-
     CRelSizeAnchor.prototype.copy = function(oPr){
         var copy = new CRelSizeAnchor();
         copy.setFromTo(this.fromX, this.fromY, this.toX, this.toY);
@@ -2348,6 +3125,7 @@
     window['AscFormat'].CAbsSizeAnchor        = CAbsSizeAnchor;
     window['AscFormat'].CalculateSrcRect      = CalculateSrcRect;
     window['AscFormat'].CCopyObjectProperties = CCopyObjectProperties;
+    window['AscFormat'].CClientData = CClientData;
     window['AscFormat'].LOCKS_MASKS           = LOCKS_MASKS;
     window['AscFormat'].MACRO_PREFIX = "jsaProject_"
 })(window);

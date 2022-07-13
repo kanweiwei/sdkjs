@@ -162,6 +162,12 @@ CImageShape.prototype.copy = function(oPr)
     if(this.textLink !== null) {
         copy.setTextLink(this.textLink);
     }
+    if(this.clientData) {
+        copy.setClientData(this.clientData.createDuplicate());
+    }
+    if(this.fLocksText !== null) {
+        copy.setFLocksText(this.fLocksText);
+    }
     copy.cachedImage = this.getBase64Img();
     copy.cachedPixH = this.cachedPixH;
     copy.cachedPixW = this.cachedPixW;
@@ -376,9 +382,9 @@ CImageShape.prototype.recalculatePen = function()
     CShape.prototype.recalculatePen.call(this);
     if(this.pen)
     {
-        if(AscFormat.isRealNumber(this.pen.w)){
-            this.pen.w *= 2;
-        }
+        // if(AscFormat.isRealNumber(this.pen.w)){
+        //     this.pen.w *= 2;
+        // }
        // if(!this.pen.Fill){
        //     this.pen = null;
        // }
@@ -635,6 +641,10 @@ CImageShape.prototype.draw = function(graphics, transform)
             return;
         }
     }
+    if(graphics.animationDrawer) {
+        graphics.animationDrawer.drawObject(this, graphics);
+        return;
+    }
 
 
     this.drawShdw &&  this.drawShdw(graphics);
@@ -667,8 +677,7 @@ CImageShape.prototype.draw = function(graphics, transform)
                 sImageId = AscCommon.getFullImageSrc2(sImageId);
                 var _img = oApi.ImageLoader.map_image_index[sImageId];
                 if ((_img && _img.Status === AscFonts.ImageLoadStatus.Loading) || (_img && _img.Image) || true === graphics.IsSlideBoundsCheckerType || true == graphics.RENDERER_PDF_FLAG){
-                    this.brush = new AscFormat.CUniFill();
-                    this.brush.fill = this.blipFill;
+					this.brush = CreateBrushFromBlipFill(this.blipFill);
                     this.pen = null;
                 }
                 else{
@@ -677,15 +686,13 @@ CImageShape.prototype.draw = function(graphics, transform)
             }
         }
         else{
-            this.brush = new AscFormat.CUniFill();
-            this.brush.fill = this.blipFill;
+            this.brush = CreateBrushFromBlipFill(this.blipFill);
             this.pen = null;
         }
     }
     else{
-        this.brush = new AscFormat.CUniFill();
-        this.brush.fill = this.blipFill;
-        this.pen = null;
+        this.brush = CreateBrushFromBlipFill(this.blipFill);
+        //this.pen = null;
     }
 
     shape_drawer.fromShape2(this, graphics, this.calcGeometry);
@@ -707,6 +714,7 @@ CImageShape.prototype.draw = function(graphics, transform)
     }
     graphics.reset();
     graphics.SetIntegerGrid(true);
+    this.drawAnimLabels && this.drawAnimLabels(graphics);
 };
 
 
@@ -750,6 +758,9 @@ CImageShape.prototype.hit = CShape.prototype.hit;
 
 CImageShape.prototype.drawAdjustments = function(drawingDocument)
 {
+    if(!this.canChangeAdjustments()) {
+        return;
+    }
     if (this.calcGeometry) {
         this.calcGeometry.drawAdjustments(drawingDocument, this.transform, false);
     }
@@ -827,6 +838,28 @@ CImageShape.prototype.Load_LinkData = function(linkData)
 {
 };
 
+    CImageShape.prototype.getTypeName = function() {
+        return AscCommon.translateManager.getValue("Picture");
+    };
+	
+	
+	function CreateBrushFromBlipFill(oBlipFill) {
+		if(!oBlipFill) {
+			return null;
+		}
+		var oBrush = new AscFormat.CUniFill();
+		oBrush.fill = oBlipFill;
+		if(Array.isArray(oBlipFill.Effects)) {
+			for(var nEffect = 0; nEffect < oBlipFill.Effects.length; ++nEffect) {
+				var oEffect = oBlipFill.Effects[nEffect];
+				if (oEffect && oEffect instanceof AscFormat.CAlphaModFix && AscFormat.isRealNumber(oEffect.amt)) {
+					oBrush.setTransparent(255 * oEffect.amt / 100000);
+					break;
+				}
+			}
+		}
+		return oBrush;
+	}
     //--------------------------------------------------------export----------------------------------------------------
     window['AscFormat'] = window['AscFormat'] || {};
     window['AscFormat'].CImageShape = CImageShape;

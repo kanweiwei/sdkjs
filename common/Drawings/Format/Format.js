@@ -74,11 +74,14 @@ var asc_CShapeProperty = Asc.asc_CShapeProperty;
 
     function CBaseObject() {
         this.Id = null;
-        if(AscCommon.g_oIdCounter.m_bLoad || History.CanAddChanges()) {
+        if(AscCommon.g_oIdCounter.m_bLoad || History.CanAddChanges() || this.notAllowedWithoutId()) {
             this.Id = AscCommon.g_oIdCounter.Get_NewId();
             AscCommon.g_oTableId.Add( this, this.Id );
         }
     }
+    CBaseObject.prototype.notAllowedWithoutId = function() {
+        return false;
+    };
     CBaseObject.prototype.getObjectType = function() {
         return AscDFH.historyitem_type_Unknown;
     };
@@ -94,23 +97,21 @@ var asc_CShapeProperty = Asc.asc_CShapeProperty;
     };
     CBaseObject.prototype.Refresh_RecalcData = function (oChange) {
     };
-
-    function InitClass(fClass, fBase, nType) {
+    
+    function InitClassWithoutType(fClass, fBase) {
         fClass.prototype = Object.create(fBase.prototype);
         fClass.prototype.superclass = fBase;
         fClass.prototype.constructor = fClass;
+    }
+
+    function InitClass(fClass, fBase, nType) {
+        InitClassWithoutType(fClass, fBase);
         fClass.prototype.classType = nType;
     }
 
     function CBaseFormatObject() {
         CBaseObject.call(this);
         this.parent = null;
-        if(this.Id === null) {
-            if(this.notAllowedWithoutId()) {
-                this.Id = AscCommon.g_oIdCounter.Get_NewId();
-                AscCommon.g_oTableId.Add(this, this.Id);
-            }
-        }
     }
     CBaseFormatObject.prototype = Object.create(CBaseObject.prototype);
     CBaseFormatObject.prototype.constructor = CBaseFormatObject;
@@ -138,7 +139,9 @@ var asc_CShapeProperty = Asc.asc_CShapeProperty;
         var oStream = pReader.stream;
         var nStart = oStream.cur;
         var nEnd = nStart + oStream.GetULong() + 4;
-        this.readAttributes(pReader);
+        if (this.readAttribute) {
+            this.readAttributes(pReader);
+        }
         this.readChildren(nEnd, pReader);
         oStream.Seek2(nEnd);
     };
@@ -165,7 +168,9 @@ var asc_CShapeProperty = Asc.asc_CShapeProperty;
         pReader.stream.SkipRecord();
     };
     CBaseFormatObject.prototype.toPPTY = function(pWriter) {
-        this.writeAttributes(pWriter);
+        if (this.privateWriteAttributes) {
+            this.writeAttributes(pWriter);
+        }
         this.writeChildren(pWriter);
     };
     CBaseFormatObject.prototype.writeAttributes = function(pWriter) {
@@ -221,46 +226,81 @@ var asc_CShapeProperty = Asc.asc_CShapeProperty;
     CBaseFormatObject.prototype.notAllowedWithoutId = function() {
         return true;
     };
-    //Method for debug
-    //CBaseObject.prototype.compareTypes = function(oOther) {
-    //    if(!oOther || !oOther.compareTypes) {
-    //        debugger;
-    //    }
-    //    for(var sKey in oOther) {
-    //        if((oOther[sKey] === null || oOther[sKey] === undefined) &&
-    //            (this[sKey] !== null && this[sKey] !== undefined)
-    //        || (this[sKey] === null || this[sKey] === undefined) &&
-    //            (oOther[sKey] !== null && oOther[sKey] !== undefined)
-    //        || (typeof this[sKey]) !== (typeof oOther[sKey])) {
-    //            debugger;
-    //        }
-    //        if(this[sKey] !== this.parent &&  typeof this[sKey] === "object" &&  this[sKey] && this[sKey].compareTypes) {
-    //            this[sKey].compareTypes(oOther[sKey]);
-    //        }
-    //        if(Array.isArray(this[sKey])) {
-    //            if(!Array.isArray(oOther[sKey])) {
-    //                debugger;
-    //            }
-    //            else {
-    //                var a1 =  this[sKey];
-    //                var a2 = oOther[sKey];
-    //                if(a1.length !== a2.length) {
-    //                    debugger;
-    //                }
-    //                else {
-    //                    for(var i = 0; i < a1.length; ++i) {
-    //                        if(!a1[i] || !a2[i]) {
-    //                            debugger;
-    //                        }
-    //                        if(typeof a1[i] === "object" &&  a1[i] && a1[i].compareTypes) {
-    //                            a1[i].compareTypes(a2[i]);
-    //                        }
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
-    //};
+    CBaseFormatObject.prototype.isEqual = function(oOther) {
+        if(!oOther) {
+            return false;
+        }
+        if(this.getObjectType() !== oOther.getObjectType()) {
+            return false;
+        }
+        var aThisChildren = this.getChildren();
+        var aOtherChildren = oOther.getChildren();
+        if(aThisChildren.length !== aOtherChildren.length) {
+            return false;
+        }
+        for(var nChild = 0; nChild < aThisChildren.length; ++nChild) {
+            var oThisChild = aThisChildren[nChild];
+            var oOtherChild = aOtherChildren[nChild];
+            if(oThisChild !== this.checkEqualChild(oThisChild, oOtherChild)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    CBaseFormatObject.prototype.checkEqualChild = function(oThisChild, oOtherChild) {
+        if(AscCommon.isRealObject(oThisChild) && oThisChild.isEqual) {
+            if(!oThisChild.isEqual(oOtherChild)) {
+                return undefined;
+            }
+        }
+        else {
+            if(oThisChild !== oOtherChild) {
+                return undefined;
+            }
+        }
+        return oThisChild;
+    };
+     //Method for debug
+    CBaseObject.prototype.compareTypes = function(oOther) {
+        if(!oOther || !oOther.compareTypes) {
+            debugger;
+        }
+        for(var sKey in oOther) {
+            if((oOther[sKey] === null || oOther[sKey] === undefined) &&
+                (this[sKey] !== null && this[sKey] !== undefined)
+            || (this[sKey] === null || this[sKey] === undefined) &&
+                (oOther[sKey] !== null && oOther[sKey] !== undefined)
+            || (typeof this[sKey]) !== (typeof oOther[sKey])) {
+                debugger;
+            }
+            if(this[sKey] !== this.parent && this[sKey] !== this.group &&  typeof this[sKey] === "object" &&  this[sKey] && this[sKey].compareTypes) {
+                this[sKey].compareTypes(oOther[sKey]);
+            }
+            if(Array.isArray(this[sKey])) {
+                if(!Array.isArray(oOther[sKey])) {
+                    debugger;
+                }
+                else {
+                    var a1 =  this[sKey];
+                    var a2 = oOther[sKey];
+                    if(a1.length !== a2.length) {
+                        debugger;
+                    }
+                    else {
+                        for(var i = 0; i < a1.length; ++i) {
+                            if(!a1[i] || !a2[i]) {
+                                debugger;
+                            }
+                            if(typeof a1[i] === "object" &&  a1[i] && a1[i].compareTypes) {
+                                a1[i].compareTypes(a2[i]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
 
     function CT_Hyperlink()
     {
@@ -2517,6 +2557,26 @@ CSrcRect.prototype =
         this.b = b;
     },
 
+    setValueForFitBlipFill: function (shapeWidth, shapeHeight, imageWidth, imageHeight) {
+        if ((imageHeight / imageWidth) > (shapeHeight / shapeWidth)) {
+            this.l = 0;
+            this.r = 100;
+            var widthAspectRatio = imageWidth / shapeWidth;
+            var heightAspectRatio = shapeHeight / imageHeight;
+            var stretchPercentage = ((1 - widthAspectRatio * heightAspectRatio) / 2) * 100;
+            this.t = stretchPercentage;
+            this.b = 100 - stretchPercentage;
+        } else {
+            this.t = 0;
+            this.b = 100;
+            heightAspectRatio = imageHeight / shapeHeight;
+            widthAspectRatio = shapeWidth / imageWidth;
+            stretchPercentage = ((1 - heightAspectRatio * widthAspectRatio) / 2) * 100;
+            this.l = stretchPercentage;
+            this.r = 100 - stretchPercentage;
+        }
+    },
+
 
     Write_ToBinary: function (w)
     {
@@ -2875,6 +2935,68 @@ CBlipFill.prototype =
             _ret.rotWithShape = this.rotWithShape;
         }
         return _ret;
+    },
+
+    getBase64RasterImageId: function (bReduce)
+    {
+        var sRasterImageId = this.RasterImageId;
+        if(typeof sRasterImageId !== "string" || sRasterImageId.length === 0)
+        {
+            return null;
+        }
+        if(sRasterImageId.indexOf("data:") === 0 && sRasterImageId.index("base64") > 0)
+        {
+            return sRasterImageId;
+        }
+        var oApi = Asc.editor || editor;
+        var sDefaultResult = sRasterImageId;
+        if(!oApi)
+        {
+            return sDefaultResult;
+        }
+        var oImageLoader = oApi.ImageLoader;
+        if(!oImageLoader)
+        {
+            return sDefaultResult;
+        }
+        var oImage = oImageLoader.map_image_index[AscCommon.getFullImageSrc2(sRasterImageId)];
+        if(!oImage || !oImage.Image || oImage.Status !== AscFonts.ImageLoadStatus.Complete)
+        {
+            return sDefaultResult;
+        }
+        var sResult = sDefaultResult;
+        if(!window["NATIVE_EDITOR_ENJINE"])
+        {
+            var oCanvas = document.createElement("canvas");
+            var nW = Math.max(oImage.Image.width, 1);
+            var nH = Math.max(oImage.Image.height, 1);
+            if(bReduce)
+            {
+                var nMaxSize = 640;
+                var dWK = nW/nMaxSize;
+                var dHK = nH/nMaxSize;
+                var dK = Math.max(dWK, dHK);
+                if(dK > 1)
+                {
+                    nW = ((nW / dK) + 0.5 >> 0);
+                    nH = ((nH / dK) + 0.5 >> 0);
+                }
+            }
+            oCanvas.width = nW;
+            oCanvas.height = nH;
+            var oCtx = oCanvas.getContext("2d");
+            oCtx.drawImage(oImage.Image, 0, 0, oCanvas.width, oCanvas.height);
+            try
+            {
+                sResult = oCanvas.toDataURL("image/png");
+            }
+            catch (err)
+            {
+                sResult = sDefaultResult;
+            }
+            return sResult;
+        }
+        return sRasterImageId;
     }
 };
 
@@ -5365,6 +5487,10 @@ function FormatRGBAColor()
         return (this.fill && this.fill.color && this.fill.color.color
         && this.fill.color.color.type === window['Asc'].c_oAscColor.COLOR_TYPE_SRGB)
     };
+    CUniFill.prototype.isSolidFillScheme = function() {
+        return (this.fill && this.fill.color && this.fill.color.color
+        && this.fill.color.color.type === window['Asc'].c_oAscColor.COLOR_TYPE_SCHEME)
+    };
     CUniFill.prototype.isNoFill = function() {
         return this.fill && this.fill.type === window['Asc'].c_oAscFill.FILL_TYPE_NOFILL;
     };
@@ -5681,6 +5807,22 @@ function CompareShapeProperties(shapeProp1, shapeProp2)
     {
         _result_shape_prop.bFromChart = false;
     }
+    if(shapeProp1.bFromSmartArt || shapeProp2.bFromSmartArt)
+    {
+        _result_shape_prop.bFromSmartArt = true;
+    }
+    else
+    {
+        _result_shape_prop.bFromSmartArt = false;
+    }
+    if(shapeProp1.bFromSmartArtInternal || shapeProp2.bFromSmartArtInternal)
+    {
+        _result_shape_prop.bFromSmartArtInternal = true;
+    }
+    else
+    {
+        _result_shape_prop.bFromSmartArtInternal = false;
+    }
     if(shapeProp1.bFromGroup || shapeProp2.bFromGroup)
     {
         _result_shape_prop.bFromGroup = true;
@@ -5703,6 +5845,10 @@ function CompareShapeProperties(shapeProp1, shapeProp2)
     }
     _result_shape_prop.lockAspect = !!(shapeProp1.lockAspect && shapeProp2.lockAspect);
     _result_shape_prop.textArtProperties = CompareTextArtProperties(shapeProp1.textArtProperties, shapeProp2.textArtProperties);
+    if(shapeProp1.bFromSmartArtInternal && !shapeProp2.bFromSmartArtInternal || !shapeProp1.bFromSmartArtInternal && shapeProp2.bFromSmartArtInternal)
+    {
+        _result_shape_prop.textArtProperties = null;
+    }
     if(shapeProp1.title === shapeProp2.title){
         _result_shape_prop.title = shapeProp1.title;
     }
@@ -5740,8 +5886,23 @@ function CompareShapeProperties(shapeProp1, shapeProp2)
     {
         _result_shape_prop.shadow = null;
     }
-
+    _result_shape_prop.protectionLockText = CompareProtectionFlags(shapeProp1.protectionLockText, shapeProp2.protectionLockText);
+    _result_shape_prop.protectionLocked = CompareProtectionFlags(shapeProp1.protectionLocked, shapeProp2.protectionLocked);
+    _result_shape_prop.protectionPrint = CompareProtectionFlags(shapeProp1.protectionPrint, shapeProp2.protectionPrint);
     return _result_shape_prop;
+}
+
+function CompareProtectionFlags(bFlag1, bFlag2)
+{
+    if(bFlag1 === null || bFlag2 === null)
+    {
+        return null;
+    }
+    else if(bFlag1 === bFlag2)
+    {
+        return bFlag1;
+    }
+    return undefined;
 }
 
 function CompareTextArtProperties(oProps1, oProps2)
@@ -7281,6 +7442,28 @@ CXfrm.prototype =
             && isRealNumber(this.chExtX) && isRealNumber(this.chExtY);
     },
 
+    isZero: function () {
+        return (
+          this.offX === 0 &&
+          this.offY === 0 &&
+          this.extX === 0 &&
+          this.extY === 0
+        );
+    },
+
+    isZeroCh: function () {
+        return (
+          this.chOffX === 0 &&
+          this.chOffY === 0 &&
+          this.chExtX === 0 &&
+          this.chExtY === 0
+        );
+    },
+
+    isZeroInGroup: function () {
+        return this.isZero() && this.isZeroCh();
+    },
+
     isEqual: function(xfrm)
     {
 
@@ -7871,6 +8054,14 @@ CSpPr.prototype =
         return duplicate;
     },
 
+    createDuplicateForSmartArt: function () {
+        var duplicate = new CSpPr();
+        if(this.Fill!=null)
+        {
+            duplicate.setFill(this.Fill.createDuplicate());
+        }
+        return duplicate;
+    },
     hasRGBFill: function(){
        return this.Fill && this.Fill.fill && this.Fill.fill.color
        && this.Fill.fill.color.color && this.Fill.fill.color.color.type === c_oAscColor.COLOR_TYPE_SRGB;
@@ -9273,6 +9464,45 @@ function CSld()
     this.Bg = null;
     this.spTree = [];//new GroupShape();
 }
+CSld.prototype.getObjectsNamesPairs = function() 
+{
+    var aPairs = [];
+    var aSpTree = this.spTree;
+    for(var nSp = 0; nSp < aSpTree.length; ++nSp) 
+    {
+        var oSp = aSpTree[nSp];
+        if(!oSp.isEmptyPlaceholder()) 
+        {
+            aPairs.push({object: oSp, name: oSp.getObjectName()});
+        }
+    }
+    return aPairs;
+};
+CSld.prototype.getObjectsNames = function() 
+{
+    var aPairs = this.getObjectsNamesPairs();
+    var aNames = [];
+    for(var nPair = 0; nPair < aPairs.length; ++nPair) 
+    {
+        var oPair = aPairs[nPair];
+        aNames.push(oPair.name);
+    }
+    return aNames;
+};
+CSld.prototype.getObjectByName = function(sName) 
+{
+    var aSpTree = this.spTree;
+    for(var nSp = 0; nSp < aSpTree.length; ++nSp) 
+    {
+        var oSp = aSpTree[nSp];
+        if(oSp.getObjectName() === sName) 
+        {
+            return oSp;
+        }
+    }
+    return null;
+};
+
 
 // ----------------------------------
 
@@ -9651,10 +9881,6 @@ CTextFit.prototype =
     {}
 };
 
-//Overflow Types
-var nOTClip     = 0;
-var nOTEllipsis = 1;
-var nOTOwerflow = 2;
 //-----------------------------
 
 //Text Anchoring Types
@@ -10150,7 +10376,7 @@ CBodyPr.prototype =
         this.compatLnSpc    = false;
         this.forceAA        = false;
         this.fromWordArt    = false;
-        this.horzOverflow   = nOTOwerflow;
+        this.horzOverflow   = AscFormat.nOTOwerflow;
         this.lIns           = 91440/36000;
         this.numCol         = 1;
         this.rIns           = 91440/36000;
@@ -10161,7 +10387,7 @@ CBodyPr.prototype =
         this.tIns           = 45720/36000;
         this.upright        = false;
         this.vert           = AscFormat.nVertTThorz;
-        this.vertOverflow   = nOTOwerflow;
+        this.vertOverflow   = AscFormat.nOTOwerflow;
         this.wrap           = AscFormat.nTWTSquare;
         this.prstTxWarp     = null;
         this.textFit        = null;
@@ -10197,6 +10423,33 @@ CBodyPr.prototype =
         if(this.textFit)
         {
             duplicate.textFit = this.textFit.CreateDublicate();
+        }
+        return duplicate;
+    },
+    createDuplicateForSmartArt: function (oPr)
+    {
+        var duplicate = new CBodyPr();
+        duplicate.anchor         = this.anchor;
+        duplicate.vert           = this.vert;
+        duplicate.rot            = this.rot;
+        duplicate.vertOverflow   = this.vertOverflow;
+        duplicate.horzOverflow   = this.horzOverflow;
+        duplicate.upright        = this.upright;
+        duplicate.rtlCol         = this.rtlCol;
+        duplicate.fromWordArt    = this.fromWordArt;
+        duplicate.compatLnSpc    = this.compatLnSpc;
+        duplicate.forceAA        = this.forceAA;
+        if (oPr.lIns) {
+            duplicate.lIns = this.lIns;
+        }
+        if (oPr.rIns) {
+            duplicate.rIns = this.rIns;
+        }
+        if (oPr.tIns) {
+            duplicate.tIns = this.tIns;
+        }
+        if (oPr.bIns) {
+            duplicate.bIns = this.bIns;
         }
         return duplicate;
     },
@@ -10640,7 +10893,7 @@ function CTextParagraphPr()
 function CreateNoneBullet() {
     var ret = new CBullet();
     ret.bulletType = new CBulletType();
-    ret.bulletType.type = BULLET_TYPE_BULLET_NONE;
+    ret.bulletType.type = AscFormat.BULLET_TYPE_BULLET_NONE;
     return ret;
 }
 
@@ -10656,21 +10909,21 @@ function CompareBullets(bullet1, bullet2)
         ret.bulletType = new CBulletType();
         switch(bullet1.bulletType.type)
         {
-            case BULLET_TYPE_BULLET_CHAR:
+            case AscFormat.BULLET_TYPE_BULLET_CHAR:
             {
-                ret.bulletType.type = BULLET_TYPE_BULLET_CHAR;
+                ret.bulletType.type = AscFormat.BULLET_TYPE_BULLET_CHAR;
                 if(bullet1.bulletType.Char === bullet2.bulletType.Char)
                 {
                     ret.bulletType.Char = bullet1.bulletType.Char;
                 }
                 break;
             }
-            case BULLET_TYPE_BULLET_BLIP:
+            case AscFormat.BULLET_TYPE_BULLET_BLIP:
             {
-                ret.bulletType.type = BULLET_TYPE_BULLET_CHAR; //TODO: в меню отдаем, что символьный.
+                ret.bulletType.type = AscFormat.BULLET_TYPE_BULLET_CHAR; //TODO: в меню отдаем, что символьный.
                 break;
             }
-            case BULLET_TYPE_BULLET_AUTONUM:
+            case AscFormat.BULLET_TYPE_BULLET_AUTONUM:
             {
                 if(bullet1.bulletType.AutoNumType === bullet2.bulletType.AutoNumType)
                 {
@@ -11331,10 +11584,6 @@ CBulletTypeface.prototype =
     }
 };
 
-var BULLET_TYPE_BULLET_NONE		= 0;
-var BULLET_TYPE_BULLET_CHAR		= 1;
-var BULLET_TYPE_BULLET_AUTONUM	= 2;
-var BULLET_TYPE_BULLET_BLIP		= 3;
 
 function CBulletType()
 {
@@ -11903,6 +12152,9 @@ function CreateAscFill(unifill)
 }
 function CorrectUniFill(asc_fill, unifill, editorId)
 {
+    if (asc_fill instanceof CUniFill) {
+        return asc_fill;
+    }
     if (null == asc_fill)
         return unifill;
 
@@ -12409,6 +12661,8 @@ function CreateAscShapePropFromProp(shapeProp)
         obj.canFill = shapeProp.canFill;
     }
     obj.bFromChart = shapeProp.bFromChart;
+    obj.bFromSmartArt = shapeProp.bFromSmartArt;
+    obj.bFromSmartArtInternal = shapeProp.bFromSmartArtInternal;
     obj.bFromGroup = shapeProp.bFromGroup;
     obj.bFromImage = shapeProp.bFromImage;
     obj.w = shapeProp.w;
@@ -13365,6 +13619,7 @@ function CorrectUniColor(asc_color, unicolor, flag)
     window['AscFormat'].CompareUniFill = CompareUniFill;
     window['AscFormat'].CompareUnifillBool = CompareUnifillBool;
     window['AscFormat'].CompareShapeProperties = CompareShapeProperties;
+    window['AscFormat'].CompareProtectionFlags = CompareProtectionFlags;
     window['AscFormat'].EndArrow = EndArrow;
     window['AscFormat'].ConvertJoinAggType = ConvertJoinAggType;
     window['AscFormat'].LineJoin = LineJoin;
@@ -13519,10 +13774,6 @@ function CorrectUniColor(asc_color, unicolor, flag)
     window['AscFormat'].nTWTNone   = 0;
     window['AscFormat'].nTWTSquare = 1;
 
-    window['AscFormat']["text_fit_No"]         = window['AscFormat'].text_fit_No         = 0;
-    window['AscFormat']["text_fit_Auto"]       = window['AscFormat'].text_fit_Auto       = 1;
-    window['AscFormat']["text_fit_NormAuto"]   = window['AscFormat'].text_fit_NormAuto   = 2;
-
     window['AscFormat'].BULLET_TYPE_COLOR_NONE	= 0;
     window['AscFormat'].BULLET_TYPE_COLOR_CLRTX	= 1;
     window['AscFormat'].BULLET_TYPE_COLOR_CLR	= 2;
@@ -13564,14 +13815,7 @@ function CorrectUniColor(asc_color, unicolor, flag)
     window['AscFormat']._arr_lt_types_weight = _arr_lt_types_weight;
     window['AscFormat']._global_layout_summs_array = _global_layout_summs_array;
 
-    window['AscFormat'].nOTOwerflow = window['AscFormat']['nOTOwerflow'] = nOTOwerflow;
-    window['AscFormat'].nOTClip = window['AscFormat']['nOTClip'] = nOTClip;
-    window['AscFormat'].nOTEllipsis = window['AscFormat']['nOTEllipsis'] = nOTEllipsis;
 
-    window['AscFormat'].BULLET_TYPE_BULLET_NONE = window['AscFormat']['BULLET_TYPE_BULLET_NONE'] = BULLET_TYPE_BULLET_NONE;
-    window['AscFormat'].BULLET_TYPE_BULLET_CHAR = window['AscFormat']['BULLET_TYPE_BULLET_CHAR'] = BULLET_TYPE_BULLET_CHAR;
-    window['AscFormat'].BULLET_TYPE_BULLET_AUTONUM = window['AscFormat']['BULLET_TYPE_BULLET_AUTONUM'] = BULLET_TYPE_BULLET_AUTONUM;
-    window['AscFormat'].BULLET_TYPE_BULLET_BLIP = window['AscFormat']['BULLET_TYPE_BULLET_BLIP'] = BULLET_TYPE_BULLET_BLIP;
 
     window['AscFormat'].AUDIO_CD = AUDIO_CD;
     window['AscFormat'].WAV_AUDIO_FILE = WAV_AUDIO_FILE;
@@ -13612,6 +13856,7 @@ function CorrectUniColor(asc_color, unicolor, flag)
         window['AscFormat'].CreateNoneBullet = CreateNoneBullet;
         window['AscFormat'].ChartBuilderTypeToInternal = ChartBuilderTypeToInternal;
         window['AscFormat'].InitClass = InitClass;
+        window['AscFormat'].InitClassWithoutType = InitClassWithoutType;
         window['AscFormat'].CBaseObject           = CBaseObject;
         window['AscFormat'].CBaseFormatObject = CBaseFormatObject;
 

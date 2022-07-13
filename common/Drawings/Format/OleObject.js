@@ -58,6 +58,7 @@ function (window, undefined) {
         AscDFH.changesFactory[AscDFH.historyitem_ImageShapeSetPixSizes] = AscDFH.CChangesDrawingsObjectNoId;
 		AscDFH.changesFactory[AscDFH.historyitem_ImageShapeSetObjectFile] = AscDFH.CChangesDrawingsString;
 		AscDFH.changesFactory[AscDFH.historyitem_ImageShapeSetOleType] = AscDFH.CChangesDrawingsLong;
+		AscDFH.changesFactory[AscDFH.historyitem_ImageShapeSetMathObject] = AscDFH.CChangesDrawingsObject;
 
 
         AscDFH.drawingsConstructorsMap[AscDFH.historyitem_ChartStyleEntryDefRPr] = AscCommonWord.CTextPr;
@@ -104,6 +105,7 @@ function (window, undefined) {
         AscDFH.drawingsConstructorsMap[AscDFH.historyitem_ImageShapeSetPixSizes] = COleSize;
 		AscDFH.drawingsChangesMap[AscDFH.historyitem_ImageShapeSetObjectFile] = function(oClass, value){oClass.m_sObjectFile = value;};
 		AscDFH.drawingsChangesMap[AscDFH.historyitem_ImageShapeSetOleType] = function(oClass, value){oClass.m_nOleType = value;};
+		AscDFH.drawingsChangesMap[AscDFH.historyitem_ImageShapeSetMathObject] = function(oClass, value){oClass.m_oMathObject = value;};
 
     function COleObject()
     {
@@ -112,15 +114,14 @@ function (window, undefined) {
         this.m_sApplicationId = null;
         this.m_nPixWidth = null;
         this.m_nPixHeight = null;
-        this.m_fDefaultSizeX = null;
-        this.m_fDefaultSizeY = null;
         this.m_sObjectFile = null;//ole object name in OOX
         this.m_nOleType = null;
         this.m_aBinaryData = null;
+        this.m_oMathObject = null;
     }
 
-		COleObject.prototype = Object.create(AscFormat.CImageShape.prototype);
-		COleObject.prototype.constructor = COleObject;
+    COleObject.prototype = Object.create(AscFormat.CImageShape.prototype);
+    COleObject.prototype.constructor = COleObject;
 
     COleObject.prototype.getObjectType = function()
     {
@@ -156,6 +157,11 @@ function (window, undefined) {
     {
         AscCommon.History.Add(new CChangesOleObjectBinary(this, this.m_aBinaryData, aBinaryData, false));
         this.m_aBinaryData = aBinaryData;
+    };
+    COleObject.prototype.setMathObject = function(oMath)
+    {
+        AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_ImageShapeSetMathObject, this.m_oMathObject, oMath));
+        this.m_oMathObject = oMath;
     };
 
     COleObject.prototype.canRotate = function () {
@@ -198,6 +204,9 @@ function (window, undefined) {
         if(this.textLink !== null) {
             copy.setTextLink(this.textLink);
         }
+        if(this.m_oMathObject !== null) {
+            copy.setMathObject(this.m_oMathObject.Copy());
+        }
         copy.cachedImage = this.getBase64Img();
         copy.cachedPixH = this.cachedPixH;
         copy.cachedPixW = this.cachedPixW;
@@ -206,12 +215,6 @@ function (window, undefined) {
 
 
     COleObject.prototype.handleUpdateExtents = function(){
-        if(!AscFormat.isRealNumber(this.m_fDefaultSizeX) || !AscFormat.isRealNumber(this.m_fDefaultSizeY)){
-            if(this.spPr && this.spPr.xfrm && AscFormat.isRealNumber(this.spPr.xfrm.extX) && AscFormat.isRealNumber(this.spPr.xfrm.extY) && this.spPr.xfrm.extX > 0 && this.spPr.xfrm.extY > 0){
-                this.m_fDefaultSizeX = this.spPr.xfrm.extX;
-                this.m_fDefaultSizeY = this.spPr.xfrm.extY;
-            }
-        }
         AscFormat.CImageShape.prototype.handleUpdateExtents.call(this, []);
     };
     COleObject.prototype.checkTypeCorrect = function(){
@@ -230,6 +233,207 @@ function (window, undefined) {
         }
         return true;
     };
-        window['AscFormat'] = window['AscFormat'] || {};
-        window['AscFormat'].COleObject = COleObject;
+    COleObject.prototype.replaceToMath = function () {
+        if(!this.m_oMathObject) {
+            return null;
+        }
+        if(!this.getDrawingObjectsController) {
+            return null;
+        }
+        var oController = this.getDrawingObjectsController();
+        if(!oController) {
+            if(this.worksheet) {
+                if(Asc && Asc.editor && Asc.editor.wb && Asc.editor.wbModel) {
+                    Asc.editor.wb.getWorksheet(Asc.editor.wbModel.getWorksheetIndexByName(this.worksheet.getName()));
+                    oController = this.getDrawingObjectsController();
+                    if(!oController) {
+                        return null;
+                    }
+                }
+                else {
+                    return null;
+                }
+            }
+            else {
+                return null;
+            }
+        }
+        var oShape = new AscFormat.CShape();
+        oShape.setBDeleted(false);
+        if(this.worksheet)
+            oShape.setWorksheet(this.worksheet);
+        if(this.parent) {
+            oShape.setParent(this.parent);
+        }
+        if(this.group) {
+            oShape.setGroup(this.group);
+        }
+        var oSpPr = new AscFormat.CSpPr();
+        var oXfrm = new AscFormat.CXfrm();
+        oXfrm.setOffX(0);
+        oXfrm.setOffY(0);
+        oXfrm.setExtX(1828800/36000);
+        oXfrm.setExtY(1828800/36000);
+        oSpPr.setXfrm(oXfrm);
+        oXfrm.setParent(oSpPr);
+        oSpPr.setFill(AscFormat.CreateNoFillUniFill());
+        oSpPr.setLn(AscFormat.CreateNoFillLine());
+        oSpPr.setGeometry(AscFormat.CreateGeometry("rect"));
+        oShape.setSpPr(oSpPr);
+        oSpPr.setParent(oShape);
+        oShape.createTextBody();
+        var oContent = oShape.getDocContent();
+        this.m_oMathObject.Correct_AfterConvertFromEquation();
+        var oParagraph = oContent.Content[0];
+        oParagraph.AddToContent(1, this.m_oMathObject);
+        oParagraph.Correct_Content();
+        oParagraph.SetParagraphAlign(AscCommon.align_Center);
+        var oBodyPr = oShape.getBodyPr().createDuplicate();
+        oBodyPr.rot = 0;
+        oBodyPr.spcFirstLastPara = false;
+        oBodyPr.vertOverflow = AscFormat.nOTOwerflow;
+        oBodyPr.horzOverflow = AscFormat.nOTOwerflow;
+        oBodyPr.vert = AscFormat.nVertTThorz;
+        oBodyPr.wrap = AscFormat.nTWTNone;
+        oBodyPr.lIns = 2.54;
+        oBodyPr.tIns = 1.27;
+        oBodyPr.rIns = 2.54;
+        oBodyPr.bIns = 1.27;
+        oBodyPr.numCol = 1;
+        oBodyPr.spcCol = 0;
+        oBodyPr.rtlCol = 0;
+        oBodyPr.fromWordArt = false;
+        oBodyPr.anchor = 1;
+        oBodyPr.anchorCtr = false;
+        oBodyPr.forceAA = false;
+        oBodyPr.compatLnSpc = true;
+        oBodyPr.prstTxWarp = AscFormat.ExecuteNoHistory(function(){return AscFormat.CreatePrstTxWarpGeometry("textNoShape");}, this, []);
+        oBodyPr.textFit = new AscFormat.CTextFit();
+        oBodyPr.textFit.type = AscFormat.text_fit_Auto;
+        oShape.txBody.setBodyPr(oBodyPr);
+        var nPos;
+        if(this.group) {
+            nPos = this.group.getPosInSpTree(this.Id);
+            if(null !== nPos && nPos > -1) {
+                this.group.removeFromSpTreeByPos(nPos);
+                this.group.addToSpTree(nPos, oShape);
+            }
+        }
+        else {
+            nPos = this.deleteDrawingBase();
+            if(null !== nPos && nPos > -1) {
+                oShape.addToDrawingObjects(nPos);
+            }
+        }
+        oShape.checkExtentsByDocContent(true, false);
+        var fXc = this.x + this.extX / 2;
+        var fYc = this.y + this.extY / 2;
+        oShape.spPr.xfrm.setOffX(fXc - oShape.extX / 2);
+        oShape.spPr.xfrm.setOffY(fYc - oShape.extY / 2);
+        oShape.spPr.xfrm.setRot(this.rot);
+        oShape.checkDrawingBaseCoords();
+        if(this.group) {
+            this.group.updateCoordinatesAfterInternalResize();
+        }
+        if(this.selected) {
+            var nSelectStartPage = this.selectStartPage;
+            this.deselect(oController);
+            oShape.select(oController, nSelectStartPage);
+        }
+        return oShape;
+    };
+
+    COleObject.prototype.editExternal = function(sData, sImageUrl, fWidth, fHeight, nPixWidth, nPixHeight) {
+        if(typeof sData === "string" && this.m_sData !== sData) {
+            this.setData(sData);
+        }
+        if(typeof sImageUrl  === "string" &&
+            (!this.blipFill || this.blipFill.RasterImageId !== sImageUrl)) {
+            var _blipFill           = new AscFormat.CBlipFill();
+            _blipFill.RasterImageId = sImageUrl;
+            this.setBlipFill(_blipFill);
+        }
+        if(this.m_nPixWidth !== nPixWidth || this.m_nPixHeight !== nPixHeight) {
+            this.setPixSizes(nPixWidth, nPixHeight);
+        }
+        var fWidth_ = fWidth;
+        var fHeight_ = fHeight;
+        if(!AscFormat.isRealNumber(fWidth_) || !AscFormat.isRealNumber(fHeight_)) {
+            var oImagePr = new Asc.asc_CImgProperty();
+            oImagePr.asc_putImageUrl(sImageUrl);
+            var oApi = editor || Asc.editor;
+            var oSize = oImagePr.asc_getOriginSize(oApi);
+            if(oSize.IsCorrect) {
+                fWidth_ = oSize.Width;
+                fHeight_ = oSize.Height;
+            }
+        }
+        if(AscFormat.isRealNumber(fWidth_) && AscFormat.isRealNumber(fHeight_)) {
+            var oXfrm = this.spPr && this.spPr.xfrm;
+            if(oXfrm) {
+                if(!AscFormat.fApproxEqual(oXfrm.extX, fWidth_) ||
+                    !AscFormat.fApproxEqual(oXfrm.extY, fHeight_)) {
+                    oXfrm.setExtX(fWidth_);
+                    oXfrm.setExtY(fHeight_);
+                    if(!this.group) {
+                        if(this.drawingBase) {
+                            this.checkDrawingBaseCoords();
+                        }
+                        if(this.parent && this.parent.CheckWH) {
+                            this.parent.CheckWH();
+                        }
+                    }
+                }
+            }
+        }
+    };
+    COleObject.prototype.GetAllOleObjects = function(sPluginId, arrObjects) {
+        if(typeof sPluginId === "string" && sPluginId.length > 0) {
+            if(sPluginId === this.m_sApplicationId) {
+                arrObjects.push(this);
+            }
+        }
+        else {
+            arrObjects.push(this);
+        }
+    };
+    COleObject.prototype.getDataObject = function() {
+        var dWidth = 0, dHeight = 0;
+        if(this.parent && this.parent.Extent) {
+            var oExtent = this.parent.Extent;
+            dWidth = oExtent.W;
+            dHeight = oExtent.H;
+        }
+        else {
+            if(this.spPr && this.spPr.xfrm) {
+                var oXfrm = this.spPr.xfrm;
+                dWidth = oXfrm.extX;
+                dHeight = oXfrm.extY;
+            }
+        }
+        var oBlipFill = this.blipFill;
+        var oParaDrawing;
+        var oParaDrawingChild = this;
+        if(this.group) {
+            oParaDrawingChild = this.getMainGroup();
+        }
+        if(AscCommonWord.ParaDrawing &&
+            oParaDrawingChild.parent &&
+            oParaDrawingChild.parent instanceof AscCommonWord.ParaDrawing) {
+            oParaDrawing = oParaDrawingChild.parent;
+        }
+        return {
+            "Data": this.m_sData,
+            "ApplicationId": this.m_sApplicationId,
+            "ImageData": oBlipFill ? oBlipFill.getBase64RasterImageId(false) : "",
+            "Width": dWidth,
+            "Height": dHeight,
+            "WidthPix": this.m_nPixWidth,
+            "HeightPix": this.m_nPixHeight,
+            "InternalId": this.Id,
+            "ParaDrawingId": oParaDrawing ? oParaDrawing.Id : ""
+        }
+    };
+    window['AscFormat'] = window['AscFormat'] || {};
+    window['AscFormat'].COleObject = COleObject;
 })(window);

@@ -161,12 +161,16 @@ function CDrawingDocument()
     this.m_lCurrentRendererPage = -1;
     this.m_oDocRenderer         = null;
 
-    this.isCreatedDefaultTableStyles = false;
-
 	this.CollaborativeTargets            = [];
 	this.CollaborativeTargetsUpdateTasks = [];
 
     this.MathTrack = new AscCommon.CMathTrack();
+
+
+    this.TableStylesLastTheme = null;
+    this.TableStylesLastColorScheme = null;
+    this.TableStylesLastColorMap = null;
+    this.TableStylesLastLook = null;
 }
 
 CDrawingDocument.prototype.Notes_GetWidth = function()
@@ -900,50 +904,54 @@ CDrawingDocument.prototype.InitGuiCanvasTextArt = function(div_id)
 {
 };
 
-CDrawingDocument.prototype.CheckTableStyles = function()
-{   
+CDrawingDocument.prototype.CheckTableStyles = function(oTableLook)
+{
     var logicDoc = this.m_oWordControl.m_oLogicDocument;
-    var _dst_styles = [];
-
-    // NOTE: need check
-
-    var page_w_mm = 90 * 2.54 / (72.0 / 96.0);
-    var page_h_mm = 70 * 2.54 / (72.0 / 96.0);
-    var page_w_px = 90 * 2;
-    var page_h_px = 70 * 2;
-
-    var stream = global_memory_stream_menu;
-    var graphics = new CDrawingStream();
-
-    this.Native["DD_PrepareNativeDraw"]();
-
-    AscCommon.History.TurnOff();
-    AscCommon.g_oTableId.m_bTurnOff = true;
-
-    for (var i = 0; i < logicDoc.TablesForInterface.length; i++)
+    var isChanged = logicDoc.CheckNeedUpdateTableStyles(oTableLook);
+    if(!isChanged)
     {
-        this.Native["DD_StartNativeDraw"](page_w_px, page_h_px, page_w_mm, page_h_mm);
-        
-        logicDoc.TablesForInterface[i].graphicObject.Draw(0, graphics);
+        return;
+    }
+    var oPreviewGenerator =  new AscCommon.CTableStylesPreviewGenerator(logicDoc);
+    var dScale = 2;//TODO
+    var page_w_mm = 297;
+    var page_h_mm = 210;
+    var page_w_px = TABLE_STYLE_WIDTH_PIX;
+    var page_h_px = TABLE_STYLE_HEIGHT_PIX;
+    var oStream = global_memory_stream_menu;
+    var oGraphics = new CDrawingStream();
+    var oNative = this.Native;
+    oPreviewGenerator.GetAllPreviewsNative(false, oGraphics, oStream, oNative, page_w_mm, page_h_mm, page_w_px, page_h_px);
+};
+CDrawingDocument.prototype.CheckTableStylesDefault = function ()
+{
+    var tableLook = this.GetTableLook(true);
+    return this.CheckTableStyles(tableLook);
+};
+CDrawingDocument.prototype.GetTableStylesPreviews = function(bUseDefault)
+{
+    return [];
+};
+CDrawingDocument.prototype.GetTableLook = function(isDefault)
+{
+    let oTableLook;
 
-        stream["ClearNoAttack"]();
-
-        stream["WriteByte"](2);
-        stream["WriteString2"]("" + logicDoc.TablesForInterface[i].graphicObject.TableStyle);
-
-        this.Native["DD_EndNativeDraw"](stream);
-        graphics.ClearParams();
+    if (isDefault)
+    {
+        oTableLook = new AscCommon.CTableLook();
+        oTableLook.SetDefault();
+    }
+    else
+    {
+        oTableLook = this.TableStylesLastLook;
     }
 
-    AscCommon.g_oTableId.m_bTurnOff = false;
-    AscCommon.History.TurnOn();
+    return oTableLook;
+};
 
-    stream["ClearNoAttack"]();
-    stream["WriteByte"](3);
-
-    this.Native["DD_EndNativeDraw"](stream);
-
-    this.isCreatedDefaultTableStyles = true;
+CDrawingDocument.prototype.GetTableStylesPreviews = function()
+{
+    return [];
 };
 
 CDrawingDocument.prototype.CheckThemes = function(){   
@@ -1472,14 +1480,14 @@ CDrawingDocument.prototype.Collaborative_UpdateTarget = function (_id, _shortId,
   		{
   			if (_id == this.CollaborativeTargets[i].Id)
   			{
-  				this.CollaborativeTargets[i].CheckPosition(this, _x, _y, _size, _page, _transform);
+  				this.CollaborativeTargets[i].CheckPosition(_x, _y, _size, _page, _transform);
   				return;
   			}
   		}
-  		var _target = new CDrawingCollaborativeTarget();
+  		var _target = new CDrawingCollaborativeTarget(this);
   		_target.Id = _id;
   		_target.ShortId = _shortId;
-  		_target.CheckPosition(this, _x, _y, _size, _page, _transform);
+  		_target.CheckPosition(_x, _y, _size, _page, _transform);
   		this.CollaborativeTargets[this.CollaborativeTargets.length] = _target;
       };
       CDrawingDocument.prototype.Collaborative_RemoveTarget = function (_id)
@@ -1730,7 +1738,7 @@ CDrawingDocument.prototype.OnCheckMouseDown = function(e)
     }
 
     return 0;
-}
+};
 
 
 CDrawingDocument.prototype.OnKeyboardEvent = function(_params){
@@ -1770,6 +1778,9 @@ CDrawingDocument.prototype.OnKeyboardEvent = function(_params){
 };
 
 
+CDrawingDocument.prototype.OnAnimPaneChanged = function(nSlideNum, oRect)
+{
+};
 
 function DrawBackground(graphics, unifill, w, h)
 {
@@ -1846,53 +1857,26 @@ function CSlideDrawer()
 	};
 }
 
-function CDrawingCollaborativeTarget()
+function CDrawingCollaborativeTarget(DrawingDocument)
 {
-	this.Id = "";
-	this.ShortId = "";
-
-	this.X = 0;
-	this.Y = 0;
-	this.Size = 0;
-	this.Page = -1;
-
-	this.Color = null;
-	this.Transform = null;
-
-	this.HtmlElement = null;
-	this.HtmlElementX = 0;
-	this.HtmlElementY = 0;
-
-	this.Color = null;
-
-	this.Style = "";
+    AscCommon.CDrawingCollaborativeTargetBase.call(this);
+    this.Page = -1;
+    this.DrawingDocument = DrawingDocument;
 }
-CDrawingCollaborativeTarget.prototype =
+CDrawingCollaborativeTarget.prototype = Object.create(AscCommon.CDrawingCollaborativeTargetBase.prototype);
+CDrawingCollaborativeTarget.prototype.CheckPosition = function (_x, _y, _size, _page, _transform)
 {
-	CheckPosition: function (_drawing_doc, _x, _y, _size, _page, _transform)
-	{
-		 // 2) определяем размер
-		 this.Transform = _transform;
-		 this.Size = _size;
-
-		 var _old_x = this.X;
-		 var _old_y = this.Y;
-		 var _old_page = this.Page;
-
-		 this.X = _x;
-		 this.Y = _y;
-		 this.Page = _page;
-	},
-
-	Remove: function (_drawing_doc)
-	{
-
-  },
-
-	Update: function (_drawing_doc)
-	{
-
-  }
+    this.Transform = _transform;
+    this.Size = _size;
+    this.X = _x;
+    this.Y = _y;
+    this.Page = _page;
+};
+CDrawingCollaborativeTarget.prototype.Remove = function ()
+{
+};
+CDrawingCollaborativeTarget.prototype.Update = function ()
+{
 };
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommon'] = window['AscCommon'] || {};

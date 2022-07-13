@@ -481,7 +481,15 @@ ParaField.prototype.IsFillingForm = function()
 };
 ParaField.prototype.FindNextFillingForm = function(isNext, isCurrent, isStart)
 {
-	if (!this.IsFillingForm())
+	var oParagraph = this.GetParagraph();
+	if (!oParagraph)
+		return null;
+
+	var oLogicDocument = oParagraph.GetLogicDocument();
+	if (!oLogicDocument)
+		return null;
+
+	if (!this.IsFillingForm() || oLogicDocument.IsFillingOFormMode())
 		return CParagraphContentWithParagraphLikeContent.prototype.FindNextFillingForm.apply(this, arguments);
 
 	if (isCurrent && true === this.IsSelectedAll())
@@ -608,6 +616,13 @@ ParaField.prototype.Read_FromBinary2 = function(Reader)
 ParaField.prototype.IsStopCursorOnEntryExit = function()
 {
 	return true;
+};
+ParaField.prototype.CheckSpelling = function(oCollector, nDepth)
+{
+	if (oCollector.IsExceedLimit())
+		return;
+
+	oCollector.FlushWord();
 };
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommonWord'] = window['AscCommonWord'] || {};

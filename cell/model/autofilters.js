@@ -922,6 +922,10 @@
 						var textLowerCase = text.toLowerCase();
 
 						var isDateTimeFormat = cell.getNumFormat().isDateTimeFormat() && cell.getType() === window["AscCommon"].CellValueType.Number;
+						if (isDateTimeFormat) {
+							isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
+						}
+
 						var dataValue = isDateTimeFormat ? AscCommon.NumFormat.prototype.parseDate(val) : null;
 
 						//check duplicate value
@@ -2012,6 +2016,9 @@
 
 				if (tablePart) {
 					//change TableParts
+					if (tablePart.QueryTable) {
+						tablePart.cleanQueryTables();
+					}
 					changeFilter(tablePart);
 				}
 				return redrawTablesArr;
@@ -2794,6 +2801,7 @@
 
 				var bAddHistoryPoint = true, clearRange, _range;
 				var undoData = val !== undefined ? !val : undefined;
+				var updateRange = tablePart.Ref && tablePart.Ref.clone();
 
 				switch (optionType) {
 					case c_oAscChangeTableStyleInfo.columnBanded: {
@@ -2936,7 +2944,7 @@
 
 				if (bAddHistoryPoint) {
 					this._addHistoryObj({val: undoData, newFilterRef: tablePart.Ref.clone()}, AscCH.historyitem_AutoFilter_ChangeTableInfo,
-						{activeCells: tablePart.Ref.clone(), type: optionType, val: val, displayName: tableName});
+						{activeCells: tablePart.Ref.clone(), type: optionType, val: val, displayName: tableName}, null, updateRange);
 				}
 
 				this._cleanStyleTable(tablePart.Ref);
@@ -3205,7 +3213,7 @@
 					oHistoryObject.type = redoObject.type;
 					oHistoryObject.cellId = redoObject.cellId;
 					oHistoryObject.autoFiltersObject = redoObject.autoFiltersObject;
-					oHistoryObject.addFormatTableOptionsObj = redoObject.addFormatTableOptionsObj
+					oHistoryObject.addFormatTableOptionsObj = redoObject.addFormatTableOptionsObj;
 					oHistoryObject.moveFrom = redoObject.arnFrom;
 					oHistoryObject.moveTo = redoObject.arnTo;
 					oHistoryObject.bWithoutFilter = bWithoutFilter ? bWithoutFilter : false;
@@ -4624,6 +4632,9 @@
 					var textLowerCase = text.toLowerCase();
 
 					isDateTimeFormat = cell.getNumFormat().isDateTimeFormat() && cell.getType() === window["AscCommon"].CellValueType.Number;
+					if (isDateTimeFormat) {
+						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
+					}
 
 					if (isDateTimeFormat) {
 						dataValue = AscCommon.NumFormat.prototype.parseDate(val);

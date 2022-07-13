@@ -52,6 +52,11 @@ function CTextMeasurerWrapper()
 
 CTextMeasurerWrapper.prototype =
 {
+    SetParams : function(params)
+    {
+        // TODO: set params to native engine
+    },
+
     Init : function()
     {
         this.Measurer["Initialize"](window["native"]);
@@ -256,6 +261,16 @@ CTextMeasurerWrapper.prototype =
     GetHeight : function()
     {
         return this.Height;
+    },
+    GetLimitsY : function()
+    {
+        var _limits = this.Measurer["GetLimitsY"]();
+        var dKoef = g_dKoef_pt_to_mm * this.m_oLastFont.SetUpSize / this.UnitsPerEm;
+
+        return {
+            min : _limits[0] * dKoef,
+            max : _limits[1] * dKoef
+        };
     },
 
     Flush : function()

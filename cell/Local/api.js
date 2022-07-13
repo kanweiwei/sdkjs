@@ -63,13 +63,16 @@ var c_oAscError = Asc.c_oAscError;
 		}
 		this.handlers.trigger("asc_onAdvancedOptions", type, options);
 	};
-	spreadsheet_api.prototype.asc_addImageDrawingObject = function(url, imgProp, token)
+	spreadsheet_api.prototype.asc_addImageDrawingObject = function(urls, imgProp, token)
 	{
 		var ws = this.wb.getWorksheet();
 		if (ws) 
 		{
-			var _url = window["AscDesktopEditor"]["LocalFileGetImageUrl"](url);
-			ws.objectRender.addImageDrawingObject([AscCommon.g_oDocumentUrls.getImageUrl(_url)], null);
+			var _urls = urls.map(function(currentValue) {
+				var localUrl =  window["AscDesktopEditor"]["LocalFileGetImageUrl"](currentValue);
+				return AscCommon.g_oDocumentUrls.getImageUrl(localUrl);
+			});
+			ws.objectRender.addImageDrawingObject(_urls, null);
 		}
 	};
 	spreadsheet_api.prototype.asc_showImageFileDialog = spreadsheet_api.prototype.asc_addImage = function(obj)
@@ -233,7 +236,24 @@ var c_oAscError = Asc.c_oAscError;
 		if (isSaveAs === true)
 			_param += "saveas=true;";
 
-		window["AscDesktopEditor"]["LocalFileSave"](_param, (password === undefined) ? asc["editor"].currentPassword : password, docinfo);
+		// настройки для pdf
+		var printOptions = "";
+		if (isSaveAs)
+		{
+			try
+			{
+				var printOptionsObj = asc["editor"].getPrintOptionsJson();
+				printOptionsObj["documentLayout"] = { "openedAt" : editor.openedAt };
+
+				printOptions = JSON.stringify(printOptionsObj);
+			}
+			catch (e)
+			{
+				printOptions = "";
+			}
+		}
+
+		window["AscDesktopEditor"]["LocalFileSave"](_param, (password === undefined) ? asc["editor"].currentPassword : password, docinfo, 0, printOptions);
 	};
 	window["DesktopOfflineAppDocumentEndSave"] = function(error, hash, password)
 	{

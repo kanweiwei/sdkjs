@@ -288,26 +288,30 @@
 			return cellValue;
 		}
 
-		function getFindRegExp(value, options) {
+		function getFindRegExp(value, options, checkEmptyVal) {
 			var findFlags = "g"; // Заменяем все вхождения
 			// Не чувствителен к регистру
 			if (true !== options.isMatchCase) {
 				findFlags += "i";
 			}
-			value = value
-				.replace(/(\\)/g, "\\\\").replace(/(\^)/g, "\\^")
-				.replace(/(\()/g, "\\(").replace(/(\))/g, "\\)")
-				.replace(/(\+)/g, "\\+").replace(/(\[)/g, "\\[")
-				.replace(/(\])/g, "\\]").replace(/(\{)/g, "\\{")
-				.replace(/(\})/g, "\\}").replace(/(\$)/g, "\\$")
-				.replace(/(\.)/g, "\\.")
-				.replace(/(~)?\*/g, function ($0, $1) {
-					return $1 ? $0 : '(.*)';
-				})
-				.replace(/(~)?\?/g, function ($0, $1) {
-					return $1 ? $0 : '.';
-				})
-				.replace(/(~\*)/g, "\\*").replace(/(~\?)/g, "\\?");
+			if (value === "" && checkEmptyVal) {
+				value = /^$/;
+			} else {
+				value = value
+					.replace(/(\\)/g, "\\\\").replace(/(\^)/g, "\\^")
+					.replace(/(\()/g, "\\(").replace(/(\))/g, "\\)")
+					.replace(/(\+)/g, "\\+").replace(/(\[)/g, "\\[")
+					.replace(/(\])/g, "\\]").replace(/(\{)/g, "\\{")
+					.replace(/(\})/g, "\\}").replace(/(\$)/g, "\\$")
+					.replace(/(\.)/g, "\\.")
+					.replace(/(~)?\*/g, function ($0, $1) {
+						return $1 ? $0 : '(.*)';
+					})
+					.replace(/(~)?\?/g, function ($0, $1) {
+						return $1 ? $0 : '.';
+					})
+					.replace(/(~\*)/g, "\\*").replace(/(~\?)/g, "\\?");
+			}
 
 			if (options.isWholeWord)
 				value = '\\b' + value + '\\b';
@@ -1413,6 +1417,22 @@
 			this.worksheet.selectionRange = this.clone();
 			this.worksheet.workbook.handlers.trigger('updateSelection');
 		};
+		SelectionRange.prototype.isContainsOnlyFullRowOrCol = function (byCol) {
+			var res = true;
+			for (var i = 0; i < this.ranges.length; ++i) {
+				var range = this.ranges[i];
+				var type = range.getType();
+				if (byCol && c_oAscSelectionType.RangeCol !== type) {
+					res = false;
+					break;
+				}
+				if (!byCol && c_oAscSelectionType.RangeRow !== type) {
+					res = false;
+					break;
+				}
+			}
+			return res;
+		};
 
     /**
      *
@@ -1906,20 +1926,55 @@
 			var pos = s.indexOf(AscCommon.g_oDefaultCultureInfo.NumberDecimalSeparator);
 			if (-1 !== pos) {
 				f = [f[0].clone()];
-				f[0].text = s.slice(0, pos);
+				f[0].setFragmentText(s.slice(0, pos));
 			}
 			return f;
 		}
 
 		function getFragmentsText(f) {
 			return f.reduce(function (pv, cv) {
-				return pv + cv.text;
+				if (null === cv.getFragmentText()) {
+					cv.initText();
+				}
+				return pv + cv.getFragmentText();
 			}, "");
 		}
 		function getFragmentsLength(f) {
 			return f.length > 0 ? f.reduce(function (pv, cv) {
-				return pv + cv.text.length;
+				if (null === cv.getFragmentText()) {
+					cv.initText();
+				}
+				return pv + cv.getFragmentText().length;
 			}, 0) : 0;
+		}
+		function getFragmentsCharCodes(f) {
+			return f.reduce(function (pv, cv) {
+				return pv.concat(cv.getCharCodes());
+			}, "");
+		}
+		function getFragmentsCharCodesLength(f) {
+			return f.length > 0 ? f.reduce(function (pv, cv) {
+				return pv + cv.getCharCodes().length;
+			}, 0) : 0;
+		}
+		function getFragmentsTextFromCode(f) {
+			return f.reduce(function (pv, cv) {
+				if (null === cv.getFragmentText()) {
+					cv.initText();
+				}
+				return pv + cv.getFragmentText();
+			}, "");
+		}
+		function convertUnicodeToSimpleString(sUnicode)
+		{
+			var sUTF16 = "";
+			var nLength = sUnicode.length;
+			for (var nPos = 0; nPos < nLength; nPos++)
+			{
+				sUTF16 += String.fromCharCode(sUnicode[nPos]);
+			}
+
+			return sUTF16;
 		}
 
 		function executeInR1C1Mode(mode, runFunction) {
@@ -1960,6 +2015,8 @@
 				} else if (coord1 > v1 && coord2 === v2) {
 					res = leftDir;
 				} else if (coord1 === v1 && coord2 < v2) {
+					res = rightDir;
+				} else {
 					res = rightDir;
 				}
 			} else {
@@ -2090,18 +2147,6 @@
 				}
 			}
 
-			if (oStyle.ApplyBorder) {
-				// borders
-				var oBorders = oStyle.getBorder();
-				drawBorder(AscCommon.c_oAscBorderType.Ver, oBorders.l, 0, 0, 0, height);
-				drawBorder(AscCommon.c_oAscBorderType.Hor, oBorders.b, 0, height - 1, width, height - 1);
-				drawBorder(AscCommon.c_oAscBorderType.Ver, oBorders.r, width - 1, height, width - 1, 0);
-				drawBorder(AscCommon.c_oAscBorderType.Hor, oBorders.t, width, 0, 0, 0);
-				if (isNotFirst) {
-					ctx.stroke();
-				}
-			}
-
 			// Draw text
 			var format = oStyle.getFont().clone();
 			// Для размера шрифта делаем ограничение для превью в 16pt (у Excel 18pt, но и высота превью больше 22px)
@@ -2126,7 +2171,7 @@
 
 				var fragments = [];
 				var tempFragment = new AscCommonExcel.Fragment();
-				tempFragment.text = sStyleName;
+				tempFragment.setFragmentText(sStyleName);
 				tempFragment.format = format;
 				fragments.push(tempFragment);
 				tm = sr.measureString(fragments, cellFlags, width);
@@ -2145,6 +2190,18 @@
 				ctx.fillText(sStyleName, width_padding, textY + tm.baseline);
 			} else {
 				sr.render(ctx, width_padding, textY, tm.width, oStyle.getFontColor() || new AscCommon.CColor(0, 0, 0));
+			}
+
+			if (oStyle.ApplyBorder) {
+				// borders
+				var oBorders = oStyle.getBorder();
+				drawBorder(AscCommon.c_oAscBorderType.Ver, oBorders.l, 0, 0, 0, height);
+				drawBorder(AscCommon.c_oAscBorderType.Hor, oBorders.b, 0, height - 1, width, height - 1);
+				drawBorder(AscCommon.c_oAscBorderType.Ver, oBorders.r, width - 1, height, width - 1, 0);
+				drawBorder(AscCommon.c_oAscBorderType.Hor, oBorders.t, width, 0, 0, 0);
+				if (isNotFirst) {
+					ctx.stroke();
+				}
 			}
 		}
 		
@@ -2207,10 +2264,8 @@
 		function generateSlicerStyles(w, h, wb) {
 			var result = [];
 
-			if (AscCommon.AscBrowser.isRetina) {
-				w = AscCommon.AscBrowser.convertToRetinaValue(w, true);
-				h = AscCommon.AscBrowser.convertToRetinaValue(h, true);
-			}
+			w = AscCommon.AscBrowser.convertToRetinaValue(w, true);
+			h = AscCommon.AscBrowser.convertToRetinaValue(h, true);
 
 			var ctx = getContext(w, h, wb);
 			var oCanvas = ctx.getCanvas();
@@ -2241,17 +2296,25 @@
 
 			var dxf, dxfWhole;
 
-			var nIns = 2;
-			var nBH = 8;
+			var nBH = (height / 6)  >> 0;
 
-			if (AscCommon.AscBrowser.isRetina) {
-				nIns = AscCommon.AscBrowser.convertToRetinaValue(nIns, true);
-				nBH = AscCommon.AscBrowser.convertToRetinaValue(nBH, true);
-			}
-
+			var nIns = (height / 6 / 5) >> 0;
+			var nHIns = (height / 6 / 5 + 0.5) >> 0;
 			//whole
 			dxfWhole = oTableStyle.wholeTable && oTableStyle.wholeTable.dxf;
+			var oOldFill;
+			if(dxfWhole) {
+				oOldFill = dxfWhole.getFill();
+				if(!oOldFill) {
+					var oFill = new AscCommonExcel.Fill();
+					oFill.fromColor(new AscCommonExcel.RgbColor(0xFFFFFF));
+					dxfWhole.setFill(oFill);
+				}
+			}
 			drawSlicerPreviewElement(dxfWhole, null, ctx, graphics, 0, 0, width, height);
+			if(dxfWhole) {
+				dxfWhole.setFill(oOldFill);
+			}
 			dxfWhole = dxfWhole || true;
 
 			//header
@@ -2267,8 +2330,8 @@
 			];
 			for(var nType = 0; nType < aBT.length; ++nType) {
 				dxf = oSlicerStyle[aBT[nType]];
-				drawSlicerPreviewElement(dxf, dxfWhole, ctx, graphics, nIns, nPos, width - nIns, nPos + nBH);
-				nPos += nBH + nIns;
+				drawSlicerPreviewElement(dxf, dxfWhole, ctx, graphics, nHIns, nPos, width - nHIns, nPos + nBH);
+				nPos += (nBH + nIns);
 			}
 		}
 		function drawSlicerPreviewElement(dxf, dxfWhole, ctx, graphics, x0, y0, x1, y1) {
@@ -2306,10 +2369,9 @@
 			if (dxfWhole) {
 				var nTIns = 5;
 				var nTW = 8;
-				if (AscCommon.AscBrowser.isRetina) {
-					nTIns = AscCommon.AscBrowser.convertToRetinaValue(nTIns, true);
-					nTW = AscCommon.AscBrowser.convertToRetinaValue(nTW, true);
-				}
+
+				nTIns = AscCommon.AscBrowser.convertToRetinaValue(nTIns, true);
+				nTW = AscCommon.AscBrowser.convertToRetinaValue(nTW, true);
 
 				var oFont = dxf && dxf.getFont() || dxfWhole && dxfWhole.getFont && dxfWhole.getFont();
 				var oColor = oFont ? oFont.getColor() : new AscCommon.CColor(0, 0, 0);
@@ -2317,7 +2379,7 @@
 				ctx.setLineWidth(1);
 				ctx.setLineDash([]);
 				ctx.beginPath();
-				ctx.lineHor(nTIns, y0 + (y1 - y0) / 2.0, nTIns + nTW);
+				ctx.lineHor(nTIns, (y0 + (y1 - y0) / 2.0 + 0.5) >> 0, nTIns + nTW);
 				ctx.stroke();
 			}
 		}
@@ -2512,6 +2574,8 @@
 				
 				//Tooltip
 				this.tooltip = obj.tooltip;
+
+				this.color = obj.color;
 			}
 
 			return this;
@@ -2529,7 +2593,8 @@
 			asc_getSizeCCOrPt: function () { return this.sizeCCOrPt; },
 			asc_getSizePx: function () { return this.sizePx; },
 			asc_getFilter: function () { return this.filter; },
-			asc_getTooltip: function () { return this.tooltip; }
+			asc_getTooltip: function () { return this.tooltip; },
+			asc_getColor: function () { return this.color; }
 		};
 
 		// Гиперссылка
@@ -2626,6 +2691,37 @@
 
 			return this;
 		}
+		CPagePrint.prototype.clone = function () {
+			var res = new CPagePrint();
+			res.pageWidth = this.pageWidth;
+			res.pageHeight = this.pageHeight;
+			res.pageClipRectLeft = this.pageClipRectLeft;
+			res.pageClipRectTop = this.pageClipRectTop;
+			res.pageClipRectWidth = this.pageClipRectWidth;
+			res.pageClipRectHeight = this.pageClipRectHeight;
+
+			res.pageRange = this.pageRange ? this.pageRange.clone() : null;
+
+			res.leftFieldInPx = this.leftFieldInPx;
+			res.topFieldInPx = this.topFieldInPx;
+
+			res.pageGridLines = this.pageGridLines;
+			res.pageHeadings = this.pageHeadings;
+
+			res.indexWorksheet = this.indexWorksheet;
+
+			res.startOffset = this.startOffset;
+			res.startOffsetPx = this.startOffsetPx;
+
+			res.scale = this.scale;
+
+			res.titleRowRange = this.titleRowRange;
+			res.titleColRange = this.titleColRange;
+			res.titleWidth = this.titleWidth;
+			res.titleHeight = this.titleHeight;
+
+			return res;
+		};
 		function CPrintPagesData () {
 			this.arrPages = [];
 			this.currentIndex = 0;
@@ -2684,6 +2780,8 @@
 
 			this.showZeros = null;
 
+			this.topLeftCell = null;
+
 			return this;
 		}
 
@@ -2698,6 +2796,7 @@
 					result.pane = this.pane.clone();
 				}
 				result.showZeros = this.showZeros;
+				result.topLeftCell = this.topLeftCell;
 				return result;
 			},
 			isEqual: function (settings) {
@@ -3086,15 +3185,18 @@
 			this.decimalPlaces = 2;
 			this.separator = false;
 			this.symbol = null;
+			this.currency = null;
 		}
 		asc_CFormatCellsInfo.prototype.asc_setType = function (val) {this.type = val;};
 		asc_CFormatCellsInfo.prototype.asc_setDecimalPlaces = function (val) {this.decimalPlaces = val;};
 		asc_CFormatCellsInfo.prototype.asc_setSeparator = function (val) {this.separator = val;};
 		asc_CFormatCellsInfo.prototype.asc_setSymbol = function (val) {this.symbol = val;};
+		asc_CFormatCellsInfo.prototype.asc_setCurrencySymbol = function (val) {this.currency = val;};
 		asc_CFormatCellsInfo.prototype.asc_getType = function () {return this.type;};
 		asc_CFormatCellsInfo.prototype.asc_getDecimalPlaces = function () {return this.decimalPlaces;};
 		asc_CFormatCellsInfo.prototype.asc_getSeparator = function () {return this.separator;};
 		asc_CFormatCellsInfo.prototype.asc_getSymbol = function () {return this.symbol;};
+		asc_CFormatCellsInfo.prototype.asc_getCurrencySymbol = function () {return this.currency;};
 
 		/**
 		 * передаём в меню для того, чтобы показать иконку опций авторавертывания таблиц
@@ -3167,22 +3269,22 @@
 			return this;
 		};
 
-		cDate.prototype.getExcelDate = function () {
-			return Math.floor( this.getExcelDateWithTime() );
+		cDate.prototype.getExcelDate = function (bLocal) {
+			return Math.floor( this.getExcelDateWithTime(bLocal) );
 		};
 
-		cDate.prototype.getExcelDateWithTime = function () {
-//    return Math.floor( ( this.getTime() / 1000 - this.getTimezoneOffset() * 60 ) / c_sPerDay + ( AscCommonExcel.c_DateCorrectConst + (bDate1904 ? 0 : 1) ) );
+		cDate.prototype.getExcelDateWithTime = function (bLocal) {
 			var year = this.getUTCFullYear(), month = this.getUTCMonth(), date = this.getUTCDate(), res;
+			var timeZoneOffset = bLocal ? this.getTimezoneOffset() * 60 * 1000 : 0;
 
-			if(1900 === year && 0 === month && 0 === date) {
+			if (1900 === year && 0 === month && 0 === date) {
 				res = 0;
-			} else if (1900 < year || (1900 == year && 1 < month)) {
-				res = (Date.UTC(year, month, date, this.getUTCHours(), this.getUTCMinutes(), this.getUTCSeconds()) - this.getExcelNullDate() ) / c_msPerDay;
-			} else if (1900 == year && 1 == month && 29 == date) {
+			} else if (1900 < year || (1900 === year && 1 < month)) {
+				res = (Date.UTC(year, month, date, this.getUTCHours(), this.getUTCMinutes(), this.getUTCSeconds()) - this.getExcelNullDate() - timeZoneOffset) / c_msPerDay;
+			} else if (1900 === year && 1 === month && 29 === date) {
 				res = 60;
 			} else {
-				res = (Date.UTC(year, month, date, this.getUTCHours(), this.getUTCMinutes(), this.getUTCSeconds()) - this.getExcelNullDate() ) / c_msPerDay - 1;
+				res = (Date.UTC(year, month, date, this.getUTCHours(), this.getUTCMinutes(), this.getUTCSeconds()) - this.getExcelNullDate() - timeZoneOffset) / c_msPerDay - 1;
 			}
 
 			return res;
@@ -3285,7 +3387,7 @@
 			return api.asc_getLocaleExample(AscCommon.getShortDateFormat(), this.getExcelDate());
 		};
 		cDate.prototype.getTimeString = function (api) {
-			return api.asc_getLocaleExample(AscCommon.getShortTimeFormat(), this.getExcelDateWithTime(true) - this.getTimezoneOffset()/(60*24));
+			return api.asc_getLocaleExample(AscCommon.getShortTimeFormat(), this.getExcelDateWithTime() - this.getTimezoneOffset()/(60*24));
 		};
 		cDate.prototype.fromISO8601 = function (dateStr) {
 			if (dateStr.endsWith("Z")) {
@@ -3349,6 +3451,9 @@
 		window["AscCommonExcel"].dropDecimalAutofit = dropDecimalAutofit;
 		window["AscCommonExcel"].getFragmentsText = getFragmentsText;
 		window['AscCommonExcel'].getFragmentsLength = getFragmentsLength;
+		window["AscCommonExcel"].getFragmentsCharCodes = getFragmentsCharCodes;
+		window["AscCommonExcel"].getFragmentsCharCodesLength = getFragmentsCharCodesLength;
+		window["AscCommonExcel"].convertUnicodeToSimpleString = convertUnicodeToSimpleString;
 		window['AscCommonExcel'].executeInR1C1Mode = executeInR1C1Mode;
 		window['AscCommonExcel'].checkFilteringMode = checkFilteringMode;
 		window["Asc"].getEndValueRange = getEndValueRange;
@@ -3394,6 +3499,7 @@
 		prot["asc_getSizePx"] = prot.asc_getSizePx;
 		prot["asc_getFilter"] = prot.asc_getFilter;
 		prot["asc_getTooltip"] = prot.asc_getTooltip;
+		prot["asc_getColor"] = prot.asc_getColor;
 
 		window["Asc"]["asc_CHyperlink"] = window["Asc"].asc_CHyperlink = asc_CHyperlink;
 		prot = asc_CHyperlink.prototype;
@@ -3480,10 +3586,12 @@
 		prot["asc_setDecimalPlaces"] = prot.asc_setDecimalPlaces;
 		prot["asc_setSeparator"] = prot.asc_setSeparator;
 		prot["asc_setSymbol"] = prot.asc_setSymbol;
+		prot["asc_setCurrencySymbol"] = prot.asc_setCurrencySymbol;
 		prot["asc_getType"] = prot.asc_getType;
 		prot["asc_getDecimalPlaces"] = prot.asc_getDecimalPlaces;
 		prot["asc_getSeparator"] = prot.asc_getSeparator;
 		prot["asc_getSymbol"] = prot.asc_getSymbol;
+		prot["asc_getCurrencySymbol"] = prot.asc_getCurrencySymbol;
 
 		window["Asc"]["asc_CAutoCorrectOptions"] = window["Asc"].asc_CAutoCorrectOptions = asc_CAutoCorrectOptions;
 		prot = asc_CAutoCorrectOptions.prototype;
