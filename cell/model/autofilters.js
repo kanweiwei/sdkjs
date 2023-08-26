@@ -952,7 +952,7 @@
 
 						var isDateTimeFormat = cell.getNumFormat().isDateTimeFormat() && cell.getType() === window["AscCommon"].CellValueType.Number;
 						if (isDateTimeFormat) {
-							isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
+							isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Date;
 						}
 
 						var dataValue = isDateTimeFormat ? AscCommon.NumFormat.prototype.parseDate(val) : null;
@@ -4671,7 +4671,7 @@
 
 					isDateTimeFormat = cell.getNumFormat().isDateTimeFormat() && cell.getType() === window["AscCommon"].CellValueType.Number;
 					if (isDateTimeFormat) {
-						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
+						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Date;
 					}
 
 					if (isDateTimeFormat) {

@@ -9238,7 +9238,7 @@ function RangeDataManagerElem(bbox, data)
 					var cell = worksheet.getCell3(row, colId + col);
 					var isDateTimeFormat = cell.getType() === window["AscCommon"].CellValueType.Number && cell.getNumFormat().isDateTimeFormat();
 					if (isDateTimeFormat) {
-						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
+						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Date;
 					}
 
 					var isNumberFilter = filterColumn.isApplyCustomFilter();
@@ -9286,7 +9286,7 @@ function RangeDataManagerElem(bbox, data)
 					}
 
 					if (isDateTimeFormat) {
-						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Data;
+						isDateTimeFormat = cell.getNumFormat().getType() === Asc.c_oAscNumFormatType.Date;
 					}
 
 					var currentValue = (isDateTimeFormat || isNumberFilter) ? cell.getValueWithoutFormat() : cell.getValueWithFormat();
